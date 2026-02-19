@@ -7,7 +7,7 @@ export function NavBar() {
   return (
     <nav className="bg-gradient-to-r from-brand-dark via-brand to-[#0a7a8f] text-white px-6 py-3 flex items-center gap-6 shadow-md">
       <Link to="/library" className="flex items-center gap-3 font-bold text-lg">
-        <img src="/logo-circle.png" alt="Joan's Fit Zone" className="h-10 w-10 rounded-full ring-2 ring-white/30" />
+        <img src={`${import.meta.env.BASE_URL}logo-circle.png`} alt="Joan's Fit Zone" className="h-10 w-10 rounded-full ring-2 ring-white/30" />
         <span className="tracking-tight">Joan's Fit Zone Timer</span>
       </Link>
       <div className="flex gap-4 ml-auto">
