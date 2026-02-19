@@ -6,6 +6,19 @@
     <title>Joan's Fit Zone Timer</title>
   </head>
   <body>
+    <script>
+      // Restore SPA route from 404.html redirect
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var path = params.get('p');
+        if (path) {
+          params.delete('p');
+          var remaining = params.toString();
+          var url = '/timer/' + path + (remaining ? '?' + remaining : '');
+          window.history.replaceState(null, '', url);
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

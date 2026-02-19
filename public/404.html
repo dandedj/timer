@@ -2,9 +2,14 @@
 <html>
   <head>
     <script>
-      // Redirect all 404s to index.html for client-side routing
-      var path = window.location.pathname;
-      window.location.replace(path);
+      // Single-page app redirect for GitHub Pages
+      // Encodes the path into a query parameter so index.html can restore it
+      var base = '/timer/';
+      var path = window.location.pathname.slice(base.length);
+      var search = window.location.search;
+      window.location.replace(
+        base + '?p=' + encodeURIComponent(path) + (search ? '&' + search.slice(1) : '')
+      );
     </script>
   </head>
 </html>
