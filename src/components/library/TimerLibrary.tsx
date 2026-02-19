@@ -1,4 +1,5 @@
-import { Plus, Timer } from 'lucide-react';
+import { useRef } from 'react';
+import { Plus, Timer, Upload } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { CompoundTimer } from '../../types/timer';
 import { TimerCard } from './TimerCard';
@@ -8,10 +9,13 @@ interface TimerLibraryProps {
   loading: boolean;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  onImport: (file: File) => Promise<void>;
+  importError?: string | null;
 }
 
-export function TimerLibrary({ timers, loading, onDuplicate, onDelete }: TimerLibraryProps) {
+export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport, importError }: TimerLibraryProps) {
   const navigate = useNavigate();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-brand-navy/50">Loading...</div>;
@@ -21,14 +25,37 @@ export function TimerLibrary({ timers, loading, onDuplicate, onDelete }: TimerLi
     <div className="max-w-4xl mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-extrabold text-brand-navy tracking-tight">My Timers</h1>
-        <button
-          onClick={() => navigate('/builder')}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all font-semibold shadow-lg shadow-pink-600/20"
-        >
-          <Plus size={18} strokeWidth={2.5} />
-          New Timer
-        </button>
+        <div className="flex items-center gap-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".seconds"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) onImport(f);
+              e.target.value = '';
+            }}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 px-5 py-2.5 border-2 border-brand-navy text-brand-navy rounded-xl hover:bg-brand-navy hover:text-white transition-all font-semibold"
+          >
+            <Upload size={18} strokeWidth={2.5} />
+            Import
+          </button>
+          <button
+            onClick={() => navigate('/builder')}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all font-semibold shadow-lg shadow-pink-600/20"
+          >
+            <Plus size={18} strokeWidth={2.5} />
+            New Timer
+          </button>
+        </div>
       </div>
+      {importError && (
+        <p className="text-sm text-red-600 bg-red-50 rounded-lg px-4 py-2 mb-4">{importError}</p>
+      )}
 
       {timers.length === 0 ? (
         <div className="text-center py-20">
