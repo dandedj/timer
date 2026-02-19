@@ -8,7 +8,7 @@ import { StorageProvider } from './storage/storageContext';
 export default function App() {
   return (
     <StorageProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/library" replace />} />
