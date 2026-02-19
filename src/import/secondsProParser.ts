@@ -17,6 +17,8 @@ interface SecondsProFile {
   setRest?: SecondsInterval;
   warmup?: SecondsInterval;
   cooldown?: SecondsInterval;
+  timers?: SecondsProFile[];
+  timerRest?: SecondsInterval;
 }
 
 function parseSetCount(value: number | string | undefined): number {
@@ -127,6 +129,49 @@ function parseType0(file: SecondsProFile): Circuit[] {
   return [buildCircuit(file.name, exercises, sets, restBetweenExercises, 0)];
 }
 
+function parseType4(file: SecondsProFile): Circuit[] {
+  if (!Array.isArray(file.timers) || file.timers.length === 0) {
+    throw new Error(`"${file.name}": compound timer contains no sub-timers.`);
+  }
+
+  const circuits: Circuit[] = [];
+
+  if (file.warmup && file.warmup.duration > 0) {
+    circuits.push(buildCircuit('Warmup', [toExercise(file.warmup, false)], 1, 0, 0));
+  }
+
+  for (const subTimer of file.timers) {
+    const subCircuits = parseType3(subTimer);
+    circuits.push(...subCircuits);
+  }
+
+  if (file.cooldown && file.cooldown.duration > 0) {
+    circuits.push(buildCircuit('Cooldown', [toExercise(file.cooldown, false)], 1, 0, 0));
+  }
+
+  return circuits;
+}
+
+function parseCircuits(file: SecondsProFile): Circuit[] {
+  if (file.type === 4) {
+    return parseType4(file);
+  }
+
+  if (!Array.isArray(file.intervals) || file.intervals.length === 0) {
+    throw new Error(`"${file.name}": file contains no intervals.`);
+  }
+
+  if (file.type === 3) {
+    return parseType3(file);
+  } else if (file.type === 0) {
+    return parseType0(file);
+  }
+
+  throw new Error(
+    `"${file.name}": unsupported Seconds Pro timer type ${file.type}. Supported types: 0, 3, 4.`,
+  );
+}
+
 export function parseSecondsProFile(jsonText: string): CompoundTimer {
   let raw: unknown;
   try {
@@ -141,22 +186,7 @@ export function parseSecondsProFile(jsonText: string): CompoundTimer {
     throw new Error('Invalid Seconds Pro file: missing timer name.');
   }
 
-  if (!Array.isArray(file.intervals) || file.intervals.length === 0) {
-    throw new Error(`"${file.name}": file contains no intervals.`);
-  }
-
-  let circuits: Circuit[];
-
-  if (file.type === 3) {
-    circuits = parseType3(file);
-  } else if (file.type === 0) {
-    circuits = parseType0(file);
-  } else {
-    throw new Error(
-      `"${file.name}": unsupported Seconds Pro timer type ${file.type}. Only types 0 and 3 are supported.`,
-    );
-  }
-
+  const circuits = parseCircuits(file);
   const now = new Date().toISOString();
 
   return {
