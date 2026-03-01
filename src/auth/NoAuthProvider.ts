@@ -11,4 +11,5 @@ export class NoAuthProvider implements IAuthProvider {
   async signIn(): Promise<User> { return ANONYMOUS_USER; }
   async signOut(): Promise<void> {}
   isAuthenticated(): boolean { return true; }
+  getAccessToken(): string | null { return null; }
 }

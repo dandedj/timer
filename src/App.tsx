@@ -5,10 +5,13 @@ import { BuilderPage } from './pages/BuilderPage';
 import { DisplayPage } from './pages/DisplayPage';
 import { CheatsheetPage } from './pages/CheatsheetPage';
 import { StorageProvider } from './storage/storageContext';
+import { GoogleConnectionProvider, useGoogleConnection } from './hooks/useGoogleConnection';
 
-export default function App() {
+function AppRoutes() {
+  const { storageProvider } = useGoogleConnection();
+
   return (
-    <StorageProvider>
+    <StorageProvider provider={storageProvider}>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route element={<AppShell />}>
@@ -22,5 +25,13 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </StorageProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <GoogleConnectionProvider>
+      <AppRoutes />
+    </GoogleConnectionProvider>
   );
 }
