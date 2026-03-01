@@ -8,6 +8,7 @@ const NULL_SNAPSHOT: EngineSnapshot = {
   status: 'idle',
   current: null,
   next: null,
+  upcoming: [],
   secondsRemaining: 0,
   elapsedTotalSeconds: 0,
   totalDurationSeconds: 0,
