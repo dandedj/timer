@@ -1,8 +1,10 @@
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { GripVertical, Copy, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Exercise } from '../../types/timer';
 import { DurationPicker } from './DurationPicker';
+import { EXERCISE_NAMES } from '../../data/exercises';
 
 interface ExerciseRowProps {
   exercise: Exercise;
@@ -12,6 +14,11 @@ interface ExerciseRowProps {
 }
 
 export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRowProps) {
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
   const {
     attributes,
     listeners,
@@ -25,6 +32,56 @@ export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRo
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
+  };
+
+  const suggestions = useMemo(() => {
+    const query = exercise.name.toLowerCase().trim();
+    if (!query) return [];
+    return EXERCISE_NAMES.filter((name) =>
+      name.toLowerCase().includes(query),
+    ).slice(0, 8);
+  }, [exercise.name]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Scroll highlighted item into view
+  useEffect(() => {
+    if (highlightIndex >= 0 && listRef.current) {
+      const item = listRef.current.children[highlightIndex] as HTMLElement;
+      item?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [highlightIndex]);
+
+  const selectSuggestion = (name: string) => {
+    onChange({ ...exercise, name });
+    setShowSuggestions(false);
+    setHighlightIndex(-1);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex((prev) => (prev + 1) % suggestions.length);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex((prev) => (prev <= 0 ? suggestions.length - 1 : prev - 1));
+    } else if (e.key === 'Enter' && highlightIndex >= 0) {
+      e.preventDefault();
+      selectSuggestion(suggestions[highlightIndex]);
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+    }
   };
 
   return (
@@ -46,13 +103,44 @@ export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRo
         style={{ backgroundColor: exercise.color }}
       />
 
-      <input
-        type="text"
-        value={exercise.name}
-        onChange={(e) => onChange({ ...exercise, name: e.target.value })}
-        placeholder="Exercise name"
-        className="flex-1 px-2 py-1 border border-gray-200 rounded-lg text-sm text-brand-navy font-medium min-w-0 bg-white focus:border-brand focus:outline-none placeholder:text-brand-navy/25"
-      />
+      <div className="relative flex-1 min-w-0" ref={wrapperRef}>
+        <input
+          type="text"
+          value={exercise.name}
+          onChange={(e) => {
+            onChange({ ...exercise, name: e.target.value });
+            setShowSuggestions(true);
+            setHighlightIndex(-1);
+          }}
+          onFocus={() => {
+            if (exercise.name.trim()) setShowSuggestions(true);
+          }}
+          onKeyDown={handleKeyDown}
+          placeholder="Exercise name"
+          className="w-full px-2 py-1 border border-gray-200 rounded-lg text-sm text-brand-navy font-medium bg-white focus:border-brand focus:outline-none placeholder:text-brand-navy/25"
+          autoComplete="off"
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <ul
+            ref={listRef}
+            className="absolute z-20 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto py-1"
+          >
+            {suggestions.map((name, idx) => (
+              <li
+                key={name}
+                onMouseDown={() => selectSuggestion(name)}
+                className={`px-3 py-1.5 text-sm cursor-pointer ${
+                  idx === highlightIndex
+                    ? 'bg-brand/10 text-brand-navy font-medium'
+                    : 'text-brand-navy/70 hover:bg-gray-50'
+                }`}
+              >
+                {name}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <DurationPicker
         value={exercise.durationSeconds}
