@@ -1,6 +1,7 @@
 import { Clock, Repeat, Layers } from 'lucide-react';
 import type { CompoundTimer } from '../../types/timer';
 import { buildSequence } from '../../engine/sequenceBuilder';
+import { TimelineBar } from './TimelineBar';
 
 interface TimerPreviewProps {
   timer: CompoundTimer;
@@ -43,6 +44,7 @@ export function TimerPreview({ timer }: TimerPreviewProps) {
           </div>
         </div>
       </div>
+      <TimelineBar timer={timer} />
     </div>
   );
 }
