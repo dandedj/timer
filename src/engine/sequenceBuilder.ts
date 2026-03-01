@@ -26,7 +26,9 @@ export function buildSequence(timer: CompoundTimer): FlatInterval[] {
         });
 
         const isLastExercise = ei === circuit.exercises.length - 1;
-        if (!isLastExercise && circuit.restBetweenExercisesSeconds > 0) {
+        const isLastSet = setNum === circuit.sets;
+        const isEndOfCircuit = isLastExercise && isLastSet;
+        if (!isEndOfCircuit && circuit.restBetweenExercisesSeconds > 0) {
           intervals.push({
             id: uuidv4(),
             kind: 'rest-exercise' as IntervalKind,
