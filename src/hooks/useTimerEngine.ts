@@ -3,6 +3,7 @@ import { TimerEngine } from '../engine/TimerEngine';
 import type { EngineSnapshot } from '../types/engine';
 import type { CompoundTimer } from '../types/timer';
 import { buildSequence } from '../engine/sequenceBuilder';
+import { DEFAULT_AUDIO_SETTINGS } from '../engine/audioEngine';
 
 const NULL_SNAPSHOT: EngineSnapshot = {
   status: 'idle',
@@ -34,11 +35,12 @@ export function useTimerEngine(timer: CompoundTimer | null) {
     };
   }, []);
 
-  // Load timer sequence when timer changes
+  // Load timer sequence and audio settings when timer changes
   useEffect(() => {
     if (!engineRef.current || !timer) return;
     const sequence = buildSequence(timer);
     engineRef.current.load(sequence);
+    engineRef.current.updateAudioSettings(timer.audioSettings ?? DEFAULT_AUDIO_SETTINGS);
   }, [timer]);
 
   const play = useCallback(() => engineRef.current?.play(), []);

@@ -15,10 +15,18 @@ export interface Circuit {
   restBetweenCircuitsSeconds: number;
 }
 
+export type SoundPreset = 'classic' | 'soft' | 'sharp' | 'bell';
+
+export interface AudioSettings {
+  preset: SoundPreset;
+  countdownEnabled: boolean;
+}
+
 export interface CompoundTimer {
   id: string;
   name: string;
   circuits: Circuit[];
+  audioSettings?: AudioSettings;
   createdAt: string;
   updatedAt: string;
 }

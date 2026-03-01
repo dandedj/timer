@@ -1,4 +1,4 @@
-import type { FlatInterval } from '../types/timer';
+import type { FlatInterval, AudioSettings } from '../types/timer';
 import type { EngineState, EngineSnapshot } from '../types/engine';
 import { AudioEngine } from './audioEngine';
 
@@ -124,6 +124,10 @@ export class TimerEngine {
     this.listeners.add(listener);
     listener(this.buildSnapshot());
     return () => this.listeners.delete(listener);
+  }
+
+  updateAudioSettings(settings: AudioSettings): void {
+    this.audio.updateSettings(settings);
   }
 
   destroy(): void {

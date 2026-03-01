@@ -21,6 +21,7 @@ import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
 import { DurationPicker } from './DurationPicker';
 import { TimerPreview } from './TimerPreview';
+import { SoundSettings, DEFAULT_AUDIO_SETTINGS } from './SoundSettings';
 import { colorForIndex } from '../../engine/colorPalette';
 
 interface TimerBuilderProps {
@@ -210,6 +211,13 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
 
       <div className="sticky top-0 z-30 mb-8 -mx-6 px-6 pt-2 pb-3 bg-white shadow-sm">
         <TimerPreview timer={timer} />
+      </div>
+
+      <div className="mb-6 px-4 py-4 bg-gray-50 rounded-xl">
+        <SoundSettings
+          settings={timer.audioSettings ?? DEFAULT_AUDIO_SETTINGS}
+          onChange={(audioSettings) => onChange({ ...timer, audioSettings })}
+        />
       </div>
 
       {/* Rearrange toggle */}
