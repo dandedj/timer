@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Play, ClipboardList, GripVertical, ArrowUpDown } from 'lucide-react';
+import { Plus, Play, ClipboardList, GripVertical, ArrowUpDown, Download, Save, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DndContext,
@@ -108,6 +108,17 @@ function InsertCircuitButton({ onClick }: { onClick: () => void }) {
 export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
   const [rearranging, setRearranging] = useState(false);
 
+  const exportTimer = () => {
+    const json = JSON.stringify(timer, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(timer.name || 'timer').replace(/[^a-zA-Z0-9_-]/g, '_')}.timer`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -179,32 +190,41 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
           placeholder="Timer name"
           className="text-3xl font-extrabold text-brand-navy tracking-tight border-b-2 border-transparent focus:border-brand outline-none pb-1 flex-1 mr-4 bg-transparent placeholder:text-brand-navy/25"
         />
-        <div className="flex gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={onCancel}
-            className="px-4 py-2.5 text-brand-navy/60 hover:text-brand-navy border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+            className="p-2.5 text-brand-navy/40 hover:text-brand-navy/70 hover:bg-gray-100 rounded-xl transition-colors"
+            title="Cancel"
           >
-            Cancel
+            <X size={22} />
           </button>
           <button
             onClick={onCheatsheet}
-            className="flex items-center gap-1.5 px-4 py-2.5 text-brand-navy/60 hover:text-brand-navy border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+            className="p-2.5 text-brand-navy/40 hover:text-brand-navy/70 hover:bg-gray-100 rounded-xl transition-colors"
+            title="Cheatsheet"
           >
-            <ClipboardList size={15} />
-            Cheatsheet
+            <ClipboardList size={22} />
+          </button>
+          <button
+            onClick={exportTimer}
+            className="p-2.5 text-brand-navy/40 hover:text-brand-navy/70 hover:bg-gray-100 rounded-xl transition-colors"
+            title="Export"
+          >
+            <Download size={22} />
           </button>
           <button
             onClick={onPreview}
-            className="flex items-center gap-1.5 px-4 py-2.5 border-2 border-brand-navy text-brand-navy rounded-xl hover:bg-brand-navy hover:text-white transition-colors font-semibold"
+            className="p-2.5 text-brand-navy hover:text-white hover:bg-brand-navy rounded-xl transition-colors"
+            title="Preview"
           >
-            <Play size={15} />
-            Preview
+            <Play size={22} />
           </button>
           <button
             onClick={onSave}
-            className="px-6 py-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all font-semibold shadow-lg shadow-pink-600/20"
+            className="p-2.5 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-xl hover:from-pink-700 hover:to-purple-700 transition-all shadow-lg shadow-pink-600/20"
+            title="Save Timer"
           >
-            Save Timer
+            <Save size={22} />
           </button>
         </div>
       </div>
