@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Stopwatch body -->
+  <circle cx="32" cy="36" r="24" fill="#0B7689" stroke="#065462" stroke-width="2.5"/>
+  <!-- Top button/crown -->
+  <rect x="28" y="6" width="8" height="8" rx="2" fill="#065462"/>
+  <!-- Side button -->
+  <rect x="49" y="18" width="7" height="4" rx="1.5" fill="#065462" transform="rotate(30 52 20)"/>
+  <!-- Clock face -->
+  <circle cx="32" cy="36" r="19" fill="white" opacity="0.95"/>
+  <!-- Tick marks -->
+  <line x1="32" y1="19" x2="32" y2="23" stroke="#065462" stroke-width="2" stroke-linecap="round"/>
+  <line x1="32" y1="49" x2="32" y2="53" stroke="#065462" stroke-width="2" stroke-linecap="round"/>
+  <line x1="15" y1="36" x2="19" y2="36" stroke="#065462" stroke-width="2" stroke-linecap="round"/>
+  <line x1="45" y1="36" x2="49" y2="36" stroke="#065462" stroke-width="2" stroke-linecap="round"/>
+  <!-- Minute hand -->
+  <line x1="32" y1="36" x2="32" y2="22" stroke="#0B7689" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Second hand -->
+  <line x1="32" y1="36" x2="42" y2="28" stroke="#E11D48" stroke-width="2" stroke-linecap="round"/>
+  <!-- Center dot -->
+  <circle cx="32" cy="36" r="2.5" fill="#065462"/>
+</svg>

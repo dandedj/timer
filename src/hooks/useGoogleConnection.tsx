@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, useMemo, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
 import type { IStorageProvider } from '../types/storage';
 import type { User } from '../auth/IAuthProvider';
 import { GoogleAuthProvider, AuthExpiredError } from '../auth/GoogleAuthProvider';
@@ -31,14 +31,28 @@ export function GoogleConnectionProvider({ children }: { children: ReactNode }) 
   const [user, setUser] = useState<User | null>(null);
   const [connecting, setConnecting] = useState(false);
   const localProvider = useMemo(() => new LocalStorageProvider(), []);
+  const refreshingRef = useRef<Promise<boolean> | null>(null);
 
-  // Restore user from auth on mount
+  // Restore session on mount — try silent token refresh if token expired but session exists
   useEffect(() => {
-    if (auth?.isAuthenticated()) {
+    if (!auth) return;
+    if (auth.isAuthenticated()) {
       auth.getCurrentUser().then(u => {
         if (u) {
           setUser(u);
           setIsConnected(true);
+        }
+      });
+    } else if (auth.hasStoredSession()) {
+      // Token expired but user was previously connected — try silent refresh
+      auth.refreshToken().then(success => {
+        if (success) {
+          auth.getCurrentUser().then(u => {
+            if (u) {
+              setUser(u);
+              setIsConnected(true);
+            }
+          });
         }
       });
     }
@@ -74,57 +88,44 @@ export function GoogleConnectionProvider({ children }: { children: ReactNode }) 
     setIsConnected(false);
   }, [auth]);
 
+  // Try a silent token refresh, returns true on success. Deduplicates concurrent calls.
+  const tryRefresh = useCallback(async (): Promise<boolean> => {
+    if (!auth) return false;
+    if (refreshingRef.current) return refreshingRef.current;
+    const promise = auth.refreshToken();
+    refreshingRef.current = promise;
+    const success = await promise;
+    refreshingRef.current = null;
+    return success;
+  }, [auth]);
+
   const storageProvider = useMemo<IStorageProvider>(() => {
     if (!isConnected || !driveProvider) return localProvider;
 
-    // Wrap drive provider to catch auth expired errors
+    // Helper: wrap a Drive operation with silent token refresh on 401
+    function withRetry<T>(op: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
+      return op().catch(async (err) => {
+        if (err instanceof AuthExpiredError) {
+          const refreshed = await tryRefresh();
+          if (refreshed) {
+            return op();
+          }
+          // Refresh failed — disconnect and fall back to local
+          setIsConnected(false);
+          setUser(null);
+          return fallback();
+        }
+        throw err;
+      });
+    }
+
     return {
-      async listTimers() {
-        try { return await driveProvider.listTimers(); }
-        catch (err) {
-          if (err instanceof AuthExpiredError) {
-            setIsConnected(false);
-            setUser(null);
-            return localProvider.listTimers();
-          }
-          throw err;
-        }
-      },
-      async getTimer(id: string) {
-        try { return await driveProvider.getTimer(id); }
-        catch (err) {
-          if (err instanceof AuthExpiredError) {
-            setIsConnected(false);
-            setUser(null);
-            return localProvider.getTimer(id);
-          }
-          throw err;
-        }
-      },
-      async saveTimer(timer) {
-        try { return await driveProvider.saveTimer(timer); }
-        catch (err) {
-          if (err instanceof AuthExpiredError) {
-            setIsConnected(false);
-            setUser(null);
-            return localProvider.saveTimer(timer);
-          }
-          throw err;
-        }
-      },
-      async deleteTimer(id: string) {
-        try { return await driveProvider.deleteTimer(id); }
-        catch (err) {
-          if (err instanceof AuthExpiredError) {
-            setIsConnected(false);
-            setUser(null);
-            return localProvider.deleteTimer(id);
-          }
-          throw err;
-        }
-      },
+      listTimers: () => withRetry(() => driveProvider.listTimers(), () => localProvider.listTimers()),
+      getTimer: (id) => withRetry(() => driveProvider.getTimer(id), () => localProvider.getTimer(id)),
+      saveTimer: (timer) => withRetry(() => driveProvider.saveTimer(timer), () => localProvider.saveTimer(timer)),
+      deleteTimer: (id) => withRetry(() => driveProvider.deleteTimer(id), () => localProvider.deleteTimer(id)),
     };
-  }, [isConnected, driveProvider, localProvider]);
+  }, [isConnected, driveProvider, localProvider, tryRefresh]);
 
   const value = useMemo<GoogleConnectionState>(() => ({
     isConnected,

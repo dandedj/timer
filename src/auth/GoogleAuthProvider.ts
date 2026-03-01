@@ -55,15 +55,22 @@ export class GoogleAuthProvider implements IAuthProvider {
 
   private static readonly SCOPES = 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 
-  async signIn(): Promise<User> {
+  private initClient(callback: (response: google.accounts.oauth2.TokenResponse) => void, errorCallback?: (error: { type: string; message: string }) => void): void {
     if (typeof google === 'undefined' || !google.accounts?.oauth2) {
       throw new Error('Google Identity Services not loaded');
     }
+    this.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: this.clientId,
+      scope: GoogleAuthProvider.SCOPES,
+      callback,
+      error_callback: errorCallback,
+    });
+  }
+
+  async signIn(): Promise<User> {
     return new Promise<User>((resolve, reject) => {
-      this.tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: this.clientId,
-        scope: GoogleAuthProvider.SCOPES,
-        callback: async (response) => {
+      this.initClient(
+        async (response) => {
           if (response.error) {
             reject(new Error(response.error_description || response.error));
             return;
@@ -77,11 +84,30 @@ export class GoogleAuthProvider implements IAuthProvider {
             reject(err);
           }
         },
-        error_callback: (error) => {
-          reject(new Error(error.message || 'OAuth error'));
-        },
-      });
+        (error) => reject(new Error(error.message || 'OAuth error')),
+      );
       this.tokenClient!.requestAccessToken({ prompt: this.accessToken ? '' : 'consent' });
+    });
+  }
+
+  /** Silently refresh the access token (no popup). Returns true on success. */
+  async refreshToken(): Promise<boolean> {
+    if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+      return false;
+    }
+    return new Promise<boolean>((resolve) => {
+      this.initClient(
+        (response) => {
+          if (response.error) {
+            resolve(false);
+            return;
+          }
+          this.persistToken(response.access_token, response.expires_in);
+          resolve(true);
+        },
+        () => resolve(false),
+      );
+      this.tokenClient!.requestAccessToken({ prompt: '' });
     });
   }
 
@@ -119,6 +145,11 @@ export class GoogleAuthProvider implements IAuthProvider {
       return false;
     }
     return true;
+  }
+
+  /** Returns true if user data is stored (even if token expired — can try refresh). */
+  hasStoredSession(): boolean {
+    return !!localStorage.getItem(USER_KEY);
   }
 
   getAccessToken(): string | null {
