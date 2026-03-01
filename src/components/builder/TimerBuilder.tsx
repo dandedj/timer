@@ -208,7 +208,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
         </div>
       </div>
 
-      <div className="mb-8">
+      <div className="sticky top-0 z-30 mb-8 -mx-6 px-6 pt-2 pb-2 bg-gradient-to-b from-white from-80% to-transparent">
         <TimerPreview timer={timer} />
       </div>
 
