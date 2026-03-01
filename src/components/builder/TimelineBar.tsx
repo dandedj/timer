@@ -221,9 +221,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                     ? ''
                     : interval.kind === 'rest-exercise'
                       ? 'Rest'
-                      : interval.kind === 'rest-set'
-                        ? `Rest (between sets)`
-                        : 'Rest (between circuits)';
+                      : 'Rest (between circuits)';
                 const displayLabel = interval.kind === 'work' ? interval.label : kindLabel;
                 const setInfo =
                   interval.totalSets > 1

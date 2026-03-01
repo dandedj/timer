@@ -121,7 +121,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
       ],
       restBetweenExercisesSeconds: 10,
       sets: 1,
-      restBetweenSetsSeconds: 30,
+      restBetweenCircuitsSeconds: 15,
     };
     const circuits = [...timer.circuits];
     circuits.splice(insertIndex, 0, newCircuit);

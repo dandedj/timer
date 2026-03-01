@@ -19,8 +19,7 @@ export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDu
     const exerciseTime = e.durationSeconds;
     return sum + exerciseTime;
   }, 0) * circuit.sets
-    + Math.max(0, circuit.exercises.length - 1) * circuit.restBetweenExercisesSeconds * circuit.sets
-    + (circuit.sets - 1) * circuit.restBetweenSetsSeconds;
+    + Math.max(0, circuit.exercises.length - 1) * circuit.restBetweenExercisesSeconds * circuit.sets;
 
   const formatDuration = (s: number) => {
     const m = Math.floor(s / 60);
@@ -95,13 +94,11 @@ export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDu
                   onChange={(s) => onChange({ ...circuit, restBetweenExercisesSeconds: s })}
                 />
 
-                {circuit.sets > 1 && (
-                  <DurationPicker
-                    label="Rest between sets:"
-                    value={circuit.restBetweenSetsSeconds}
-                    onChange={(s) => onChange({ ...circuit, restBetweenSetsSeconds: s })}
-                  />
-                )}
+                <DurationPicker
+                  label="Rest after circuit:"
+                  value={circuit.restBetweenCircuitsSeconds}
+                  onChange={(s) => onChange({ ...circuit, restBetweenCircuitsSeconds: s })}
+                />
               </div>
 
               <ExerciseList

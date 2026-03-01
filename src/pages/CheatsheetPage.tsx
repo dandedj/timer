@@ -17,9 +17,7 @@ function circuitDuration(circuit: Circuit): number {
   const restsBetweenExercises =
     Math.max(0, circuit.exercises.length - 1) * circuit.restBetweenExercisesSeconds;
   const singleSetTime = exerciseTime + restsBetweenExercises;
-  const restsBetweenSets =
-    Math.max(0, circuit.sets - 1) * circuit.restBetweenSetsSeconds;
-  return singleSetTime * circuit.sets + restsBetweenSets;
+  return singleSetTime * circuit.sets;
 }
 
 export function CheatsheetPage() {
@@ -116,9 +114,8 @@ export function CheatsheetPage() {
                     {circuit.exercises[0]?.durationSeconds ?? 0}s work
                     {circuit.restBetweenExercisesSeconds > 0 &&
                       ` / ${circuit.restBetweenExercisesSeconds}s rest`}
-                    {circuit.sets > 1 &&
-                      circuit.restBetweenSetsSeconds > 0 &&
-                      ` / ${circuit.restBetweenSetsSeconds}s between sets`}
+                    {circuit.restBetweenCircuitsSeconds > 0 &&
+                      ` / ${circuit.restBetweenCircuitsSeconds}s after circuit`}
                   </span>
                   <span className={`text-brand-navy/40 font-mono ml-auto ${twoColumn ? 'text-xs print:text-[11px]' : 'text-base print:text-sm'}`}>
                     {formatDuration(duration)}

@@ -12,7 +12,7 @@ export interface Circuit {
   exercises: Exercise[];
   restBetweenExercisesSeconds: number;
   sets: number;
-  restBetweenSetsSeconds: number;
+  restBetweenCircuitsSeconds: number;
 }
 
 export interface CompoundTimer {

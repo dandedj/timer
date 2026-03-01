@@ -56,7 +56,7 @@ function buildCircuit(
   exercises: Exercise[],
   sets: number,
   restBetweenExercisesSeconds: number,
-  restBetweenSetsSeconds: number,
+  restBetweenCircuitsSeconds: number,
 ): Circuit {
   return {
     id: uuidv4(),
@@ -64,7 +64,7 @@ function buildCircuit(
     exercises,
     sets,
     restBetweenExercisesSeconds,
-    restBetweenSetsSeconds,
+    restBetweenCircuitsSeconds,
   };
 }
 
@@ -86,14 +86,13 @@ function parseType3(file: SecondsProFile): Circuit[] {
     toExercise(interval, false),
   );
   const restBetweenExercises = file.intervalRest?.duration ?? 0;
-  const restBetweenSets = file.setRest?.duration ?? 0;
 
   circuits.push(buildCircuit(
     file.name,
     exercises,
     sets,
     restBetweenExercises,
-    restBetweenSets,
+    15,
   ));
 
   if (file.cooldown && file.cooldown.duration > 0) {

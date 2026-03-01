@@ -1,6 +1,6 @@
 import type { CompoundTimer, FlatInterval, IntervalKind } from '../types/timer';
 import { v4 as uuidv4 } from 'uuid';
-import { REST_COLOR, REST_SET_COLOR, REST_CIRCUIT_COLOR } from './colorPalette';
+import { REST_COLOR, REST_CIRCUIT_COLOR } from './colorPalette';
 
 export function buildSequence(timer: CompoundTimer): FlatInterval[] {
   const intervals: Omit<FlatInterval, 'intervalIndexGlobal' | 'totalIntervalsGlobal'>[] = [];
@@ -40,32 +40,16 @@ export function buildSequence(timer: CompoundTimer): FlatInterval[] {
           });
         }
       }
-
-      const isLastSet = setNum === circuit.sets;
-      if (!isLastSet && circuit.restBetweenSetsSeconds > 0) {
-        intervals.push({
-          id: uuidv4(),
-          kind: 'rest-set' as IntervalKind,
-          label: 'Rest (between sets)',
-          durationSeconds: circuit.restBetweenSetsSeconds,
-          color: REST_SET_COLOR,
-          circuitName: circuit.name,
-          circuitIndex: ci,
-          setNumber: setNum,
-          totalSets: circuit.sets,
-        });
-      }
     }
 
-    // Rest between circuits (not after the last circuit)
+    // Rest between circuits (not after the last one)
     const isLastCircuit = ci === timer.circuits.length - 1;
-    if (!isLastCircuit) {
-      const nextCircuit = timer.circuits[ci + 1];
+    if (!isLastCircuit && circuit.restBetweenCircuitsSeconds > 0) {
       intervals.push({
         id: uuidv4(),
         kind: 'rest-circuit' as IntervalKind,
-        label: `Rest — ${nextCircuit.name} next`,
-        durationSeconds: circuit.restBetweenExercisesSeconds || 15,
+        label: 'Rest (between circuits)',
+        durationSeconds: circuit.restBetweenCircuitsSeconds,
         color: REST_CIRCUIT_COLOR,
         circuitName: circuit.name,
         circuitIndex: ci,
