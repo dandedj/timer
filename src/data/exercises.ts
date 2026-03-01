@@ -52,6 +52,7 @@ export const EXERCISE_NAMES = [
   'Sumo Deadlifts',
   'Romanian Deadlifts',
   'Single-Leg Deadlifts',
+  'Good Mornings',
   'Glute Bridges',
   'Single-Leg Glute Bridges',
   'Hip Thrusts',
