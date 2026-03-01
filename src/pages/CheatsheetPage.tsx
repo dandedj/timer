@@ -83,32 +83,30 @@ export function CheatsheetPage() {
             const duration = circuitDuration(circuit);
             return (
               <div key={circuit.id} className="break-inside-avoid">
-                {/* Circuit header */}
-                <div className="flex items-baseline gap-3 mb-3 border-b-2 border-brand-navy/10 pb-2">
+                {/* Circuit header with summary on same line */}
+                <div className="flex items-baseline gap-3 mb-2 border-b-2 border-brand-navy/10 pb-2 flex-wrap">
                   <span className="text-lg font-bold text-white bg-brand-navy rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0 print:text-base print:w-7 print:h-7">
                     {ci + 1}
                   </span>
                   <h2 className="text-2xl font-bold text-brand-navy print:text-xl">
                     {circuit.name}
                   </h2>
-                  <span className="text-lg text-brand-navy/40 font-mono print:text-base">
+                  <span className="text-base text-brand-navy/40 print:text-sm">
+                    {circuit.sets} set{circuit.sets !== 1 ? 's' : ''}
+                    {' \u00b7 '}
+                    {circuit.exercises.length} exercise{circuit.exercises.length !== 1 ? 's' : ''}
+                    {' \u00b7 '}
+                    {circuit.exercises[0]?.durationSeconds ?? 0}s work
+                    {circuit.restBetweenExercisesSeconds > 0 &&
+                      ` / ${circuit.restBetweenExercisesSeconds}s rest`}
+                    {circuit.sets > 1 &&
+                      circuit.restBetweenSetsSeconds > 0 &&
+                      ` / ${circuit.restBetweenSetsSeconds}s between sets`}
+                  </span>
+                  <span className="text-base text-brand-navy/40 font-mono print:text-sm ml-auto">
                     {formatDuration(duration)}
                   </span>
                 </div>
-
-                {/* Circuit summary line */}
-                <p className="text-lg text-brand-navy/60 mb-3 print:text-base">
-                  {circuit.sets} set{circuit.sets !== 1 ? 's' : ''}
-                  {' \u00b7 '}
-                  {circuit.exercises.length} exercise{circuit.exercises.length !== 1 ? 's' : ''}
-                  {' \u00b7 '}
-                  {circuit.exercises[0]?.durationSeconds ?? 0}s work
-                  {circuit.restBetweenExercisesSeconds > 0 &&
-                    ` / ${circuit.restBetweenExercisesSeconds}s rest`}
-                  {circuit.sets > 1 &&
-                    circuit.restBetweenSetsSeconds > 0 &&
-                    ` / ${circuit.restBetweenSetsSeconds}s between sets`}
-                </p>
 
                 {/* Exercise list */}
                 <div className="grid grid-cols-1 gap-1">
