@@ -7,9 +7,10 @@ interface TimerCardProps {
   timer: CompoundTimer;
   onDuplicate: () => void;
   onDelete: () => void;
+  confirmingDelete?: boolean;
 }
 
-export function TimerCard({ timer, onDuplicate, onDelete }: TimerCardProps) {
+export function TimerCard({ timer, onDuplicate, onDelete, confirmingDelete }: TimerCardProps) {
   const navigate = useNavigate();
   const totalSeconds = computeTotalDuration(timer);
   const minutes = Math.floor(totalSeconds / 60);
@@ -64,9 +65,14 @@ export function TimerCard({ timer, onDuplicate, onDelete }: TimerCardProps) {
             </button>
             <button
               onClick={onDelete}
-              className="flex items-center gap-1.5 px-3 py-2 text-brand-navy/30 rounded-lg text-sm font-medium hover:bg-red-50 hover:text-red-500 transition-colors ml-auto"
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ml-auto ${
+                confirmingDelete
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'text-brand-navy/30 hover:bg-red-50 hover:text-red-500'
+              }`}
             >
               <Trash2 size={14} />
+              {confirmingDelete && <span>Delete?</span>}
             </button>
           </div>
         </div>

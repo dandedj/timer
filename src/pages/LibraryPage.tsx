@@ -38,6 +38,7 @@ export function LibraryPage() {
       onDelete={handleDelete}
       onImport={handleImport}
       importError={importError}
+      deleteConfirmId={deleteConfirm}
     />
   );
 }

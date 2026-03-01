@@ -222,11 +222,13 @@ export class TimerEngine {
     const { state } = this;
     const current = state.sequence[state.currentIndex] ?? null;
     const next = state.sequence[state.currentIndex + 1] ?? null;
+    const upcoming = state.sequence.slice(state.currentIndex + 1, state.currentIndex + 6);
 
     return {
       status: state.status,
       current,
       next,
+      upcoming,
       secondsRemaining: Math.ceil(state.ticksRemaining / 100),
       elapsedTotalSeconds: Math.floor(state.elapsedTotalSeconds),
       totalDurationSeconds: state.totalDurationSeconds,

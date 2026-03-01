@@ -10,3 +10,18 @@ body {
 #root {
   min-height: 100vh;
 }
+
+@keyframes upcoming-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.upcoming-card {
+  animation: upcoming-slide-up 350ms ease-out both;
+}

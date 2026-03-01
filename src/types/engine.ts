@@ -15,6 +15,7 @@ export interface EngineSnapshot {
   status: EngineStatus;
   current: FlatInterval | null;
   next: FlatInterval | null;
+  upcoming: FlatInterval[];
   secondsRemaining: number;
   elapsedTotalSeconds: number;
   totalDurationSeconds: number;

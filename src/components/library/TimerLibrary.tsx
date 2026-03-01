@@ -9,11 +9,12 @@ interface TimerLibraryProps {
   loading: boolean;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
+  deleteConfirmId?: string | null;
   onImport: (file: File) => Promise<void>;
   importError?: string | null;
 }
 
-export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport, importError }: TimerLibraryProps) {
+export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport, importError, deleteConfirmId }: TimerLibraryProps) {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -73,6 +74,7 @@ export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport,
               timer={timer}
               onDuplicate={() => onDuplicate(timer.id)}
               onDelete={() => onDelete(timer.id)}
+              confirmingDelete={deleteConfirmId === timer.id}
             />
           ))}
         </div>
