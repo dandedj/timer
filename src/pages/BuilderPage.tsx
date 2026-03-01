@@ -63,6 +63,11 @@ export function BuilderPage() {
     navigate(`/display/${timer.id}`);
   };
 
+  const handleCheatsheet = async () => {
+    await saveTimer(timer);
+    navigate(`/cheatsheet/${timer.id}`);
+  };
+
   if (!loaded) return null;
 
   return (
@@ -71,6 +76,7 @@ export function BuilderPage() {
       onChange={setTimer}
       onSave={handleSave}
       onPreview={handlePreview}
+      onCheatsheet={handleCheatsheet}
       onCancel={() => navigate('/library')}
     />
   );

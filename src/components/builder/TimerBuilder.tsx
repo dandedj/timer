@@ -1,4 +1,4 @@
-import { Plus, Play } from 'lucide-react';
+import { Plus, Play, ClipboardList } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
@@ -10,6 +10,7 @@ interface TimerBuilderProps {
   onChange: (timer: CompoundTimer) => void;
   onSave: () => void;
   onPreview: () => void;
+  onCheatsheet: () => void;
   onCancel: () => void;
 }
 
@@ -25,7 +26,7 @@ function getExerciseOffsetForCircuit(timer: CompoundTimer, circuitIndex: number)
   return offset;
 }
 
-export function TimerBuilder({ timer, onChange, onSave, onPreview, onCancel }: TimerBuilderProps) {
+export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
   const addCircuit = () => {
     const offset = getTotalExerciseCount(timer);
     const newCircuit: Circuit = {
@@ -80,6 +81,13 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCancel }: T
             className="px-4 py-2.5 text-brand-navy/60 hover:text-brand-navy border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
           >
             Cancel
+          </button>
+          <button
+            onClick={onCheatsheet}
+            className="flex items-center gap-1.5 px-4 py-2.5 text-brand-navy/60 hover:text-brand-navy border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+          >
+            <ClipboardList size={15} />
+            Cheatsheet
           </button>
           <button
             onClick={onPreview}

@@ -3,6 +3,7 @@ import { AppShell } from './components/layout/AppShell';
 import { LibraryPage } from './pages/LibraryPage';
 import { BuilderPage } from './pages/BuilderPage';
 import { DisplayPage } from './pages/DisplayPage';
+import { CheatsheetPage } from './pages/CheatsheetPage';
 import { StorageProvider } from './storage/storageContext';
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
             <Route path="/builder/:timerId" element={<BuilderPage />} />
           </Route>
           <Route path="/display/:timerId" element={<DisplayPage />} />
+          <Route path="/cheatsheet/:timerId" element={<CheatsheetPage />} />
         </Routes>
       </BrowserRouter>
     </StorageProvider>

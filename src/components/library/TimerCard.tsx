@@ -1,4 +1,4 @@
-import { Play, Edit2, Copy, Trash2, Layers, Dumbbell } from 'lucide-react';
+import { Play, Edit2, Copy, Trash2, Layers, Dumbbell, ClipboardList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { CompoundTimer } from '../../types/timer';
 import { computeTotalDuration } from '../../engine/sequenceBuilder';
@@ -55,6 +55,13 @@ export function TimerCard({ timer, onDuplicate, onDelete, confirmingDelete }: Ti
             >
               <Edit2 size={14} />
               Edit
+            </button>
+            <button
+              onClick={() => navigate(`/cheatsheet/${timer.id}`)}
+              className="flex items-center gap-1.5 px-3 py-2 text-brand-navy/60 rounded-lg text-sm font-medium hover:bg-brand/5 hover:text-brand transition-colors"
+            >
+              <ClipboardList size={14} />
+              Cheatsheet
             </button>
             <button
               onClick={onDuplicate}
