@@ -162,6 +162,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
           {/* Workout segments */}
           {sequence.map((interval, idx) => {
             const widthPct = (interval.durationSeconds / targetSeconds) * 100;
+            const isRest = interval.kind !== 'work';
             return (
               <div
                 key={interval.id + '-' + idx}
@@ -169,8 +170,17 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                 style={{
                   width: `${widthPct}%`,
                   minWidth: '2px',
-                  backgroundColor: interval.kind === 'work' ? interval.color : REST_COLOR,
-                  opacity: interval.kind === 'work' ? 1 : 0.4,
+                  backgroundColor: isRest ? REST_COLOR : interval.color,
+                  opacity: isRest ? 0.5 : 1,
+                  ...(isRest ? {
+                    backgroundImage: `repeating-linear-gradient(
+                      45deg,
+                      transparent,
+                      transparent 2px,
+                      rgba(255,255,255,0.3) 2px,
+                      rgba(255,255,255,0.3) 4px
+                    )`,
+                  } : {}),
                 }}
               />
             );
