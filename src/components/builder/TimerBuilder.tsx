@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
+import { DurationPicker } from './DurationPicker';
 import { TimerPreview } from './TimerPreview';
 import { colorForIndex } from '../../engine/colorPalette';
 
@@ -248,20 +249,33 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
         </DndContext>
       ) : (
         <>
-          {timer.circuits.map((circuit, i) => (
-            <div key={circuit.id}>
-              {i > 0 && (
-                <InsertCircuitButton onClick={() => createCircuit(i)} />
-              )}
-              <CircuitCard
-                circuit={circuit}
-                colorOffset={getExerciseOffsetForCircuit(timer, i)}
-                onChange={(c) => updateCircuit(i, c)}
-                onDelete={() => deleteCircuit(i)}
-                onDuplicate={() => duplicateCircuit(i)}
-              />
-            </div>
-          ))}
+          {timer.circuits.map((circuit, i) => {
+            const isLast = i === timer.circuits.length - 1;
+            return (
+              <div key={circuit.id}>
+                {i > 0 && (
+                  <InsertCircuitButton onClick={() => createCircuit(i)} />
+                )}
+                <CircuitCard
+                  circuit={circuit}
+                  colorOffset={getExerciseOffsetForCircuit(timer, i)}
+                  onChange={(c) => updateCircuit(i, c)}
+                  onDelete={() => deleteCircuit(i)}
+                  onDuplicate={() => duplicateCircuit(i)}
+                />
+                {!isLast && (
+                  <div className="flex items-center gap-2 px-4 py-2 mb-1">
+                    <DurationPicker
+                      label="Rest after circuit:"
+                      value={circuit.restBetweenCircuitsSeconds}
+                      onChange={(s) => updateCircuit(i, { ...circuit, restBetweenCircuitsSeconds: s })}
+                      presets={[10, 15, 20, 30]}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </>
       )}
 

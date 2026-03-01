@@ -92,12 +92,7 @@ export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDu
                   label="Rest between exercises:"
                   value={circuit.restBetweenExercisesSeconds}
                   onChange={(s) => onChange({ ...circuit, restBetweenExercisesSeconds: s })}
-                />
-
-                <DurationPicker
-                  label="Rest after circuit:"
-                  value={circuit.restBetweenCircuitsSeconds}
-                  onChange={(s) => onChange({ ...circuit, restBetweenCircuitsSeconds: s })}
+                  presets={[10, 15, 20, 30]}
                 />
               </div>
 
