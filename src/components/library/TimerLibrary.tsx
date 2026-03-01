@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { Plus, Timer, Upload } from 'lucide-react';
+import { Plus, Timer, Upload, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { CompoundTimer } from '../../types/timer';
 import { TimerCard } from './TimerCard';
@@ -30,7 +30,7 @@ export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport,
           <input
             ref={fileInputRef}
             type="file"
-            accept=".seconds,.timer"
+            accept=".timer"
             className="hidden"
             onChange={e => {
               const f = e.target.files?.[0];
@@ -38,6 +38,15 @@ export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport,
               e.target.value = '';
             }}
           />
+          <a
+            href={`${import.meta.env.BASE_URL}timer-format.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2.5 text-brand-navy/60 hover:text-brand-navy border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors font-medium"
+          >
+            <FileText size={18} strokeWidth={2.5} />
+            Format Guide
+          </a>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 px-5 py-2.5 border-2 border-brand-navy text-brand-navy rounded-xl hover:bg-brand-navy hover:text-white transition-all font-semibold"
