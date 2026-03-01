@@ -20,7 +20,7 @@ function createEmptyTimer(): CompoundTimer {
         ],
         restBetweenExercisesSeconds: 10,
         sets: 1,
-        restBetweenCircuitsSeconds: 15,
+        restBetweenCircuitsSeconds: 30,
       },
     ],
     createdAt: '',
