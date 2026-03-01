@@ -25,7 +25,7 @@ export function CheatsheetPage() {
   const navigate = useNavigate();
   const storage = useStorage();
   const [timer, setTimer] = useState<CompoundTimer | null>(null);
-  const [twoColumn, setTwoColumn] = useState(false);
+  const [twoColumn, setTwoColumn] = useState(true);
 
   useEffect(() => {
     if (!timerId) {

@@ -1,5 +1,4 @@
 import { useRef } from 'react';
-import { Volume2, VolumeX } from 'lucide-react';
 import type { AudioSettings, SoundPreset } from '../../types/timer';
 import { AudioEngine, DEFAULT_AUDIO_SETTINGS } from '../../engine/audioEngine';
 
@@ -55,14 +54,14 @@ export function SoundSettings({ settings, onChange }: SoundSettingsProps) {
       </div>
       <button
         onClick={toggleCountdown}
-        className={`p-1.5 rounded-lg transition-colors ${
+        className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
           settings.countdownEnabled
             ? 'bg-white/15 text-white/80 hover:bg-white/20'
-            : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50'
+            : 'bg-white/5 text-white/30 line-through hover:bg-white/10 hover:text-white/50'
         }`}
         title={`Countdown beeps ${settings.countdownEnabled ? 'on' : 'off'}`}
       >
-        {settings.countdownEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+        3-2-1
       </button>
     </div>
   );
