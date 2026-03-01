@@ -28,7 +28,7 @@ export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDu
   };
 
   return (
-    <div className="rounded-xl bg-white shadow-sm border border-gray-100 mb-4 overflow-hidden">
+    <div className="rounded-xl bg-white shadow-sm border border-gray-100 mb-4">
       <div className="flex">
         <div className="w-1.5 bg-gradient-to-b from-brand to-brand-dark flex-shrink-0" />
         <div className="flex-1">
