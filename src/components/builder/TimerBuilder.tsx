@@ -1,5 +1,22 @@
-import { Plus, Play, ClipboardList } from 'lucide-react';
+import { useState } from 'react';
+import { Plus, Play, ClipboardList, GripVertical, ArrowUpDown } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
 import { TimerPreview } from './TimerPreview';
@@ -14,10 +31,6 @@ interface TimerBuilderProps {
   onCancel: () => void;
 }
 
-function getTotalExerciseCount(timer: CompoundTimer): number {
-  return timer.circuits.reduce((sum, c) => sum + c.exercises.length, 0);
-}
-
 function getExerciseOffsetForCircuit(timer: CompoundTimer, circuitIndex: number): number {
   let offset = 0;
   for (let i = 0; i < circuitIndex; i++) {
@@ -26,9 +39,80 @@ function getExerciseOffsetForCircuit(timer: CompoundTimer, circuitIndex: number)
   return offset;
 }
 
+function SortableCircuitCard({
+  circuit,
+  colorOffset,
+  onChange,
+  onDelete,
+  onDuplicate,
+  rearranging,
+}: {
+  circuit: Circuit;
+  colorOffset: number;
+  onChange: (c: Circuit) => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
+  rearranging: boolean;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: circuit.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative">
+      {rearranging && (
+        <button
+          className="absolute left-0 top-4 -ml-8 cursor-grab text-brand-navy/30 hover:text-brand-navy/60 z-10"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical size={20} />
+        </button>
+      )}
+      <CircuitCard
+        circuit={circuit}
+        colorOffset={colorOffset}
+        onChange={onChange}
+        onDelete={onDelete}
+        onDuplicate={onDuplicate}
+      />
+    </div>
+  );
+}
+
+function InsertCircuitButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 text-brand/50 hover:text-brand mt-1 mb-1 px-3 py-1.5 border border-dashed border-brand/20 rounded-lg w-full justify-center hover:border-brand/40 hover:bg-brand/5 transition-all text-sm font-medium"
+    >
+      <Plus size={14} />
+      Insert Circuit
+    </button>
+  );
+}
+
 export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
-  const addCircuit = () => {
-    const offset = getTotalExerciseCount(timer);
+  const [rearranging, setRearranging] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const createCircuit = (insertIndex: number) => {
+    const offset = getExerciseOffsetForCircuit(timer, insertIndex);
     const newCircuit: Circuit = {
       id: uuidv4(),
       name: `Circuit ${timer.circuits.length + 1}`,
@@ -39,7 +123,13 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
       sets: 1,
       restBetweenSetsSeconds: 30,
     };
-    onChange({ ...timer, circuits: [...timer.circuits, newCircuit] });
+    const circuits = [...timer.circuits];
+    circuits.splice(insertIndex, 0, newCircuit);
+    onChange({ ...timer, circuits });
+  };
+
+  const addCircuit = () => {
+    createCircuit(timer.circuits.length);
   };
 
   const updateCircuit = (index: number, circuit: Circuit) => {
@@ -62,6 +152,18 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
     };
     const circuits = [...timer.circuits];
     circuits.splice(index + 1, 0, copy);
+    onChange({ ...timer, circuits });
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = timer.circuits.findIndex(c => c.id === active.id);
+    const newIndex = timer.circuits.findIndex(c => c.id === over.id);
+    const circuits = [...timer.circuits];
+    const [moved] = circuits.splice(oldIndex, 1);
+    circuits.splice(newIndex, 0, moved);
     onChange({ ...timer, circuits });
   };
 
@@ -109,16 +211,59 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
         <TimerPreview timer={timer} />
       </div>
 
-      {timer.circuits.map((circuit, i) => (
-        <CircuitCard
-          key={circuit.id}
-          circuit={circuit}
-          colorOffset={getExerciseOffsetForCircuit(timer, i)}
-          onChange={(c) => updateCircuit(i, c)}
-          onDelete={() => deleteCircuit(i)}
-          onDuplicate={() => duplicateCircuit(i)}
-        />
-      ))}
+      {/* Rearrange toggle */}
+      {timer.circuits.length > 1 && (
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setRearranging(!rearranging)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              rearranging
+                ? 'bg-brand/10 text-brand'
+                : 'text-brand-navy/40 hover:text-brand-navy/60 hover:bg-gray-50'
+            }`}
+          >
+            <ArrowUpDown size={14} />
+            {rearranging ? 'Done' : 'Rearrange'}
+          </button>
+        </div>
+      )}
+
+      {rearranging ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={timer.circuits.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            <div className="pl-8">
+              {timer.circuits.map((circuit, i) => (
+                <SortableCircuitCard
+                  key={circuit.id}
+                  circuit={circuit}
+                  colorOffset={getExerciseOffsetForCircuit(timer, i)}
+                  onChange={(c) => updateCircuit(i, c)}
+                  onDelete={() => deleteCircuit(i)}
+                  onDuplicate={() => duplicateCircuit(i)}
+                  rearranging
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <>
+          {timer.circuits.map((circuit, i) => (
+            <div key={circuit.id}>
+              {i > 0 && (
+                <InsertCircuitButton onClick={() => createCircuit(i)} />
+              )}
+              <CircuitCard
+                circuit={circuit}
+                colorOffset={getExerciseOffsetForCircuit(timer, i)}
+                onChange={(c) => updateCircuit(i, c)}
+                onDelete={() => deleteCircuit(i)}
+                onDuplicate={() => duplicateCircuit(i)}
+              />
+            </div>
+          ))}
+        </>
+      )}
 
       <button
         onClick={addCircuit}
