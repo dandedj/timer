@@ -57,6 +57,7 @@ export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRo
       <DurationPicker
         value={exercise.durationSeconds}
         onChange={(s) => onChange({ ...exercise, durationSeconds: s })}
+        presets={[10, 15, 20, 30]}
       />
 
       <div className="flex items-center gap-1">
