@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Clock, Repeat, Layers } from 'lucide-react';
 import type { CompoundTimer } from '../../types/timer';
 import { buildSequence } from '../../engine/sequenceBuilder';
@@ -5,9 +6,10 @@ import { TimelineBar } from './TimelineBar';
 
 interface TimerPreviewProps {
   timer: CompoundTimer;
+  children?: ReactNode;
 }
 
-export function TimerPreview({ timer }: TimerPreviewProps) {
+export function TimerPreview({ timer, children }: TimerPreviewProps) {
   const sequence = buildSequence(timer);
   const totalSeconds = sequence.reduce((s, i) => s + i.durationSeconds, 0);
   const minutes = Math.floor(totalSeconds / 60);
@@ -15,7 +17,7 @@ export function TimerPreview({ timer }: TimerPreviewProps) {
 
   return (
     <div className="bg-gradient-to-r from-brand-dark to-brand rounded-xl p-5 text-white shadow-sm">
-      <div className="grid grid-cols-3 gap-4">
+      <div className="flex items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
             <Clock size={18} />
@@ -43,6 +45,12 @@ export function TimerPreview({ timer }: TimerPreviewProps) {
             <div className="font-bold text-lg">{timer.circuits.length}</div>
           </div>
         </div>
+        {children && (
+          <>
+            <div className="w-px h-8 bg-white/15 ml-auto" />
+            {children}
+          </>
+        )}
       </div>
       <TimelineBar timer={timer} />
     </div>

@@ -8,11 +8,11 @@ interface SoundSettingsProps {
   onChange: (settings: AudioSettings) => void;
 }
 
-const PRESETS: { value: SoundPreset; label: string; description: string }[] = [
-  { value: 'classic', label: 'Classic', description: 'Clean sine tones' },
-  { value: 'soft', label: 'Soft', description: 'Gentle, low tones' },
-  { value: 'sharp', label: 'Sharp', description: 'Punchy, crisp beeps' },
-  { value: 'bell', label: 'Bell', description: 'Bright, chime-like' },
+const PRESETS: { value: SoundPreset; label: string }[] = [
+  { value: 'classic', label: 'Classic' },
+  { value: 'soft', label: 'Soft' },
+  { value: 'sharp', label: 'Sharp' },
+  { value: 'bell', label: 'Bell' },
 ];
 
 export function SoundSettings({ settings, onChange }: SoundSettingsProps) {
@@ -37,36 +37,32 @@ export function SoundSettings({ settings, onChange }: SoundSettingsProps) {
   };
 
   return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-brand-navy/70 uppercase tracking-wider">Sounds</h3>
-
-      <div className="flex flex-wrap gap-2">
+    <div className="flex items-center gap-2">
+      <div className="flex gap-1">
         {PRESETS.map(p => (
           <button
             key={p.value}
             onClick={() => setPreset(p.value)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
               settings.preset === p.value
-                ? 'bg-brand text-white'
-                : 'bg-gray-100 text-brand-navy/60 hover:bg-gray-200 hover:text-brand-navy'
+                ? 'bg-white/25 text-white'
+                : 'bg-white/10 text-white/50 hover:bg-white/15 hover:text-white/70'
             }`}
-            title={p.description}
           >
             {p.label}
           </button>
         ))}
       </div>
-
       <button
         onClick={toggleCountdown}
-        className={`flex items-center gap-2 text-sm font-medium transition-colors ${
+        className={`p-1.5 rounded-lg transition-colors ${
           settings.countdownEnabled
-            ? 'text-brand-navy/70 hover:text-brand-navy'
-            : 'text-brand-navy/40 hover:text-brand-navy/60'
+            ? 'bg-white/15 text-white/80 hover:bg-white/20'
+            : 'bg-white/5 text-white/30 hover:bg-white/10 hover:text-white/50'
         }`}
+        title={`Countdown beeps ${settings.countdownEnabled ? 'on' : 'off'}`}
       >
-        {settings.countdownEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        Countdown beeps {settings.countdownEnabled ? 'on' : 'off'}
+        {settings.countdownEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
       </button>
     </div>
   );

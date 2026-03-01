@@ -210,14 +210,12 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
       </div>
 
       <div className="sticky top-0 z-30 mb-8 -mx-6 px-6 pt-2 pb-3 bg-white shadow-sm">
-        <TimerPreview timer={timer} />
-      </div>
-
-      <div className="mb-6 px-4 py-4 bg-gray-50 rounded-xl">
-        <SoundSettings
-          settings={timer.audioSettings ?? DEFAULT_AUDIO_SETTINGS}
-          onChange={(audioSettings) => onChange({ ...timer, audioSettings })}
-        />
+        <TimerPreview timer={timer}>
+          <SoundSettings
+            settings={timer.audioSettings ?? DEFAULT_AUDIO_SETTINGS}
+            onChange={(audioSettings) => onChange({ ...timer, audioSettings })}
+          />
+        </TimerPreview>
       </div>
 
       {/* Rearrange toggle */}
