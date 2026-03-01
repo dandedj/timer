@@ -60,21 +60,6 @@ export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRo
         presets={[25, 30, 35, 40, 45, 60]}
       />
 
-      <div className="flex items-center gap-1">
-        <input
-          type="number"
-          min={0}
-          value={exercise.repCount ?? ''}
-          onChange={(e) => {
-            const val = parseInt(e.target.value);
-            onChange({ ...exercise, repCount: isNaN(val) || val === 0 ? undefined : val });
-          }}
-          placeholder="Reps"
-          className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-center text-sm text-brand-navy bg-white focus:border-brand focus:outline-none"
-        />
-        <span className="text-xs text-brand-navy/30">reps</span>
-      </div>
-
       <button
         onClick={onCopy}
         className="text-brand-navy/20 hover:text-brand transition-colors"
