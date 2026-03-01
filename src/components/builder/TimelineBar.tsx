@@ -20,7 +20,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(45);
   const [waitMinutes, setWaitMinutes] = useState(2);
-  const [warmupMinutes, setWarmupMinutes] = useState(5);
+  const [warmupMinutes, setWarmupMinutes] = useState(8);
 
   const sequence = useMemo(() => buildSequence(timer), [timer]);
   const totalSeconds = useMemo(
