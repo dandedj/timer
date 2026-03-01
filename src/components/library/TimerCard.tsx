@@ -1,4 +1,4 @@
-import { Play, Edit2, Copy, Trash2, Layers, Dumbbell, ClipboardList } from 'lucide-react';
+import { Play, Edit2, Copy, Trash2, Layers, Dumbbell, ClipboardList, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { CompoundTimer } from '../../types/timer';
 import { computeTotalDuration } from '../../engine/sequenceBuilder';
@@ -12,6 +12,18 @@ interface TimerCardProps {
 
 export function TimerCard({ timer, onDuplicate, onDelete, confirmingDelete }: TimerCardProps) {
   const navigate = useNavigate();
+
+  const exportTimer = () => {
+    const json = JSON.stringify(timer, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(timer.name || 'timer').replace(/[^a-zA-Z0-9_-]/g, '_')}.timer`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const totalSeconds = computeTotalDuration(timer);
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
@@ -62,6 +74,13 @@ export function TimerCard({ timer, onDuplicate, onDelete, confirmingDelete }: Ti
             >
               <ClipboardList size={14} />
               Cheatsheet
+            </button>
+            <button
+              onClick={exportTimer}
+              className="flex items-center gap-1.5 px-3 py-2 text-brand-navy/60 rounded-lg text-sm font-medium hover:bg-brand/5 hover:text-brand transition-colors"
+            >
+              <Download size={14} />
+              Export
             </button>
             <button
               onClick={onDuplicate}

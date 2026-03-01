@@ -30,7 +30,7 @@ export function TimerLibrary({ timers, loading, onDuplicate, onDelete, onImport,
           <input
             ref={fileInputRef}
             type="file"
-            accept=".seconds"
+            accept=".seconds,.timer"
             className="hidden"
             onChange={e => {
               const f = e.target.files?.[0];
