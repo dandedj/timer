@@ -19,6 +19,8 @@ function formatTime(totalSeconds: number): string {
 export function TimelineBar({ timer }: TimelineBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(45);
+  const [waitMinutes, setWaitMinutes] = useState(2);
+  const [warmupMinutes, setWarmupMinutes] = useState(5);
 
   const sequence = useMemo(() => buildSequence(timer), [timer]);
   const totalSeconds = useMemo(
@@ -26,9 +28,11 @@ export function TimelineBar({ timer }: TimelineBarProps) {
     [sequence],
   );
 
+  const preTimerSeconds = (waitMinutes + warmupMinutes) * 60;
   const targetSeconds = targetMinutes * 60;
-  const remainingSeconds = targetSeconds - totalSeconds;
-  const overflows = totalSeconds > targetSeconds;
+  const availableSeconds = targetSeconds - preTimerSeconds;
+  const remainingSeconds = availableSeconds - totalSeconds;
+  const overflows = totalSeconds > availableSeconds;
 
   // Group intervals by circuit for expanded view
   const circuitGroups = useMemo(() => {
@@ -58,37 +62,80 @@ export function TimelineBar({ timer }: TimelineBarProps) {
 
   return (
     <div className="mt-4">
-      {/* Target class length */}
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-xs text-white/60 uppercase tracking-wider font-medium whitespace-nowrap">
-          Class length
-        </span>
-        <div className="flex gap-1.5">
-          {CLASS_LENGTHS.map((len) => (
-            <button
-              key={len}
-              onClick={() => setTargetMinutes(len)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                targetMinutes === len
-                  ? 'bg-white/25 text-white'
-                  : 'bg-white/10 text-white/50 hover:bg-white/15 hover:text-white/70'
-              }`}
-            >
-              {len}m
-            </button>
-          ))}
+      {/* Class timing settings */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
+        {/* Class length */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-white/60 uppercase tracking-wider font-medium whitespace-nowrap">
+            Class
+          </span>
+          <div className="flex gap-1.5">
+            {CLASS_LENGTHS.map((len) => (
+              <button
+                key={len}
+                onClick={() => setTargetMinutes(len)}
+                className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                  targetMinutes === len
+                    ? 'bg-white/25 text-white'
+                    : 'bg-white/10 text-white/50 hover:bg-white/15 hover:text-white/70'
+                }`}
+              >
+                {len}m
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-1">
+            <input
+              type="number"
+              min={1}
+              max={180}
+              value={targetMinutes}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v) && v > 0) setTargetMinutes(v);
+              }}
+              className="w-14 bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 text-center outline-none focus:bg-white/20 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-xs text-white/40">min</span>
+          </div>
         </div>
+
+        <div className="w-px h-4 bg-white/15" />
+
+        {/* Wait time */}
         <div className="flex items-center gap-1.5">
+          <span className="text-xs text-white/60 uppercase tracking-wider font-medium whitespace-nowrap">
+            Wait
+          </span>
           <input
             type="number"
-            min={1}
-            max={180}
-            value={targetMinutes}
+            min={0}
+            max={30}
+            value={waitMinutes}
             onChange={(e) => {
               const v = parseInt(e.target.value, 10);
-              if (!isNaN(v) && v > 0) setTargetMinutes(v);
+              if (!isNaN(v) && v >= 0) setWaitMinutes(v);
             }}
-            className="w-14 bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 text-center outline-none focus:bg-white/20 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="w-12 bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 text-center outline-none focus:bg-white/20 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+          <span className="text-xs text-white/40">min</span>
+        </div>
+
+        {/* Warmup time */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-white/60 uppercase tracking-wider font-medium whitespace-nowrap">
+            Warmup
+          </span>
+          <input
+            type="number"
+            min={0}
+            max={30}
+            value={warmupMinutes}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              if (!isNaN(v) && v >= 0) setWarmupMinutes(v);
+            }}
+            className="w-12 bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 text-center outline-none focus:bg-white/20 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="text-xs text-white/40">min</span>
         </div>
@@ -100,6 +147,18 @@ export function TimelineBar({ timer }: TimelineBarProps) {
         className="cursor-pointer group"
       >
         <div className="relative h-6 bg-white/10 rounded-lg overflow-hidden flex">
+          {/* Pre-timer block (wait + warmup) */}
+          {preTimerSeconds > 0 && (
+            <div
+              className="h-full bg-white/15 flex items-center justify-center"
+              style={{ width: `${(preTimerSeconds / targetSeconds) * 100}%` }}
+            >
+              <span className="text-[9px] text-white/40 truncate px-1">
+                {waitMinutes + warmupMinutes}m
+              </span>
+            </div>
+          )}
+          {/* Workout segments */}
           {sequence.map((interval, idx) => {
             const widthPct = (interval.durationSeconds / targetSeconds) * 100;
             return (
@@ -118,7 +177,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
           {/* Overflow indicator */}
           {overflows && (
             <div className="absolute right-0 top-0 h-full px-2 flex items-center bg-red-500/80 text-[10px] font-bold text-white whitespace-nowrap">
-              +{formatTime(totalSeconds - targetSeconds)}
+              +{formatTime(totalSeconds - availableSeconds)}
             </div>
           )}
         </div>
@@ -134,7 +193,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
             )}
             {overflows && (
               <span className="text-xs text-red-300">
-                over by {formatTime(totalSeconds - targetSeconds)}
+                over by {formatTime(totalSeconds - availableSeconds)}
               </span>
             )}
           </div>

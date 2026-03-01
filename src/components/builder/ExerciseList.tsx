@@ -64,6 +64,14 @@ export function ExerciseList({ exercises, onChange, colorOffset = 0 }: ExerciseL
     onChange(exercises.filter((_, i) => i !== index));
   };
 
+  const duplicateExercise = (index: number) => {
+    const original = exercises[index];
+    const copy: Exercise = { ...original, id: uuidv4() };
+    const updated = [...exercises];
+    updated.splice(index + 1, 0, copy);
+    onChange(updated);
+  };
+
   return (
     <div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -74,6 +82,7 @@ export function ExerciseList({ exercises, onChange, colorOffset = 0 }: ExerciseL
               exercise={exercise}
               onChange={(e) => updateExercise(i, e)}
               onDelete={() => deleteExercise(i)}
+              onCopy={() => duplicateExercise(i)}
             />
           ))}
         </SortableContext>

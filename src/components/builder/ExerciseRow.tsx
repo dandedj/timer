@@ -1,4 +1,4 @@
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Copy, Trash2 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Exercise } from '../../types/timer';
@@ -8,9 +8,10 @@ interface ExerciseRowProps {
   exercise: Exercise;
   onChange: (exercise: Exercise) => void;
   onDelete: () => void;
+  onCopy: () => void;
 }
 
-export function ExerciseRow({ exercise, onChange, onDelete }: ExerciseRowProps) {
+export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRowProps) {
   const {
     attributes,
     listeners,
@@ -73,6 +74,13 @@ export function ExerciseRow({ exercise, onChange, onDelete }: ExerciseRowProps) 
         <span className="text-xs text-brand-navy/30">reps</span>
       </div>
 
+      <button
+        onClick={onCopy}
+        className="text-brand-navy/20 hover:text-brand transition-colors"
+        title="Duplicate exercise"
+      >
+        <Copy size={16} />
+      </button>
       <button
         onClick={onDelete}
         className="text-brand-navy/20 hover:text-red-500 transition-colors"
