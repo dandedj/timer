@@ -38,13 +38,22 @@ export function DisplayPage() {
     isRunning: snapshot.status === 'running',
   });
 
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  }, []);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.code === 'Escape') handleBack();
+      if (e.code === 'KeyF') toggleFullscreen();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleBack]);
+  }, [handleBack, toggleFullscreen]);
 
   if (!timer) return null;
 
