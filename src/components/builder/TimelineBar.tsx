@@ -9,6 +9,7 @@ interface TimelineBarProps {
 }
 
 const CLASS_LENGTHS = [30, 45, 60];
+const REST_COLOR = '#9ca3af'; // gray-400
 
 function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -168,8 +169,8 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                 style={{
                   width: `${widthPct}%`,
                   minWidth: '2px',
-                  backgroundColor: interval.color,
-                  opacity: interval.kind === 'work' ? 1 : 0.6,
+                  backgroundColor: interval.kind === 'work' ? interval.color : REST_COLOR,
+                  opacity: interval.kind === 'work' ? 1 : 0.4,
                 }}
               />
             );
@@ -237,7 +238,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                     {/* Color dot */}
                     <div
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: interval.color }}
+                      style={{ backgroundColor: interval.kind === 'work' ? interval.color : REST_COLOR }}
                     />
                     {/* Label */}
                     <div className="flex-1 min-w-0 truncate text-white/80">
