@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 interface DurationPickerProps {
   value: number;
   onChange: (seconds: number) => void;
@@ -9,10 +11,18 @@ export function DurationPicker({ value, onChange, label, presets }: DurationPick
   const minutes = Math.floor(value / 60);
   const seconds = value % 60;
   const isPreset = presets?.includes(value);
+  const [customMode, setCustomMode] = useState(false);
+
+  const showManual = !presets || customMode || !isPreset;
 
   const handleChange = (m: number, s: number) => {
     const clamped = Math.max(0, m * 60 + s);
     onChange(clamped);
+  };
+
+  const selectPreset = (p: number) => {
+    setCustomMode(false);
+    onChange(p);
   };
 
   return (
@@ -24,9 +34,9 @@ export function DurationPicker({ value, onChange, label, presets }: DurationPick
             <button
               key={p}
               type="button"
-              onClick={() => onChange(p)}
+              onClick={() => selectPreset(p)}
               className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                value === p
+                value === p && !customMode
                   ? 'bg-brand text-white'
                   : 'bg-gray-100 text-brand-navy/50 hover:bg-gray-200 hover:text-brand-navy/70'
               }`}
@@ -34,9 +44,20 @@ export function DurationPicker({ value, onChange, label, presets }: DurationPick
               {p}s
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setCustomMode(true)}
+            className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+              showManual
+                ? 'bg-brand text-white'
+                : 'bg-gray-100 text-brand-navy/50 hover:bg-gray-200 hover:text-brand-navy/70'
+            }`}
+          >
+            Custom
+          </button>
         </div>
       )}
-      {(!presets || !isPreset) && (
+      {showManual && (
         <>
           <input
             type="number"
