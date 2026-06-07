@@ -14,6 +14,7 @@ export const EXERCISE_COLORS = [
 export const REST_COLOR = '#0B7689';
 export const REST_SET_COLOR = '#086070';
 export const REST_CIRCUIT_COLOR = '#064E5C';
+export const WARMUP_COLOR = '#B45309';
 
 export function colorForIndex(index: number): string {
   return EXERCISE_COLORS[index % EXERCISE_COLORS.length];

@@ -11,6 +11,7 @@ function createEmptyTimer(): CompoundTimer {
   return {
     id: uuidv4(),
     name: '',
+    warmupSeconds: 600,
     circuits: [
       {
         id: uuidv4(),

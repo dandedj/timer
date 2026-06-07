@@ -10,6 +10,7 @@ interface TimelineBarProps {
 
 const CLASS_LENGTHS = [30, 45, 60];
 const REST_COLOR = '#9ca3af'; // gray-400
+const WARMUP_COLOR = '#B45309'; // amber-700
 
 function formatTime(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -21,15 +22,16 @@ export function TimelineBar({ timer }: TimelineBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(45);
   const [waitMinutes, setWaitMinutes] = useState(2);
-  const [warmupMinutes, setWarmupMinutes] = useState(8);
 
+  // The warm-up is now a real timer interval (part of the sequence/total below), so
+  // planning only needs the pre-class "wait" time on top of it.
   const sequence = useMemo(() => buildSequence(timer), [timer]);
   const totalSeconds = useMemo(
     () => sequence.reduce((sum, i) => sum + i.durationSeconds, 0),
     [sequence],
   );
 
-  const preTimerSeconds = (waitMinutes + warmupMinutes) * 60;
+  const preTimerSeconds = waitMinutes * 60;
   const targetSeconds = targetMinutes * 60;
   const availableSeconds = targetSeconds - preTimerSeconds;
   const remainingSeconds = availableSeconds - totalSeconds;
@@ -121,25 +123,6 @@ export function TimelineBar({ timer }: TimelineBarProps) {
           />
           <span className="text-xs text-white/40">min</span>
         </div>
-
-        {/* Warmup time */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-white/60 uppercase tracking-wider font-medium whitespace-nowrap">
-            Warmup
-          </span>
-          <input
-            type="number"
-            min={0}
-            max={30}
-            value={warmupMinutes}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (!isNaN(v) && v >= 0) setWarmupMinutes(v);
-            }}
-            className="w-12 bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 text-center outline-none focus:bg-white/20 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <span className="text-xs text-white/40">min</span>
-        </div>
       </div>
 
       {/* Collapsed bar */}
@@ -148,14 +131,14 @@ export function TimelineBar({ timer }: TimelineBarProps) {
         className="cursor-pointer group"
       >
         <div className="relative h-6 bg-white/10 rounded-lg overflow-hidden flex">
-          {/* Pre-timer block (wait + warmup) */}
+          {/* Pre-class wait block */}
           {preTimerSeconds > 0 && (
             <div
               className="h-full bg-white/15 flex items-center justify-center"
               style={{ width: `${(preTimerSeconds / targetSeconds) * 100}%` }}
             >
               <span className="text-[9px] text-white/40 truncate px-1">
-                {waitMinutes + warmupMinutes}m
+                {waitMinutes}m wait
               </span>
             </div>
           )}
@@ -170,7 +153,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                 style={{
                   width: `${widthPct}%`,
                   minWidth: '2px',
-                  backgroundColor: isRest ? REST_COLOR : interval.color,
+                  backgroundColor: interval.kind === 'warmup' ? WARMUP_COLOR : isRest ? REST_COLOR : interval.color,
                   opacity: isRest ? 0.5 : 1,
                   ...(isRest ? {
                     backgroundImage: `repeating-linear-gradient(
@@ -227,8 +210,8 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                 const globalIdx = sequence.indexOf(interval);
                 const cumulative = cumulativeTimes[globalIdx];
                 const kindLabel =
-                  interval.kind === 'work'
-                    ? ''
+                  interval.kind === 'warmup'
+                    ? 'Warm Up'
                     : interval.kind === 'rest-exercise'
                       ? 'Rest'
                       : 'Rest (between circuits)';
@@ -246,7 +229,7 @@ export function TimelineBar({ timer }: TimelineBarProps) {
                     {/* Color dot */}
                     <div
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: interval.kind === 'work' ? interval.color : REST_COLOR }}
+                      style={{ backgroundColor: interval.kind === 'work' ? interval.color : interval.kind === 'warmup' ? WARMUP_COLOR : REST_COLOR }}
                     />
                     {/* Label */}
                     <div className="flex-1 min-w-0 truncate text-white/80">

@@ -1,9 +1,31 @@
 import type { CompoundTimer, FlatInterval, IntervalKind } from '../types/timer';
 import { v4 as uuidv4 } from 'uuid';
-import { REST_COLOR, REST_CIRCUIT_COLOR } from './colorPalette';
+import { REST_COLOR, REST_CIRCUIT_COLOR, WARMUP_COLOR } from './colorPalette';
+
+/** Default lead-in warm-up (10 min) when a timer doesn't specify one. */
+export const DEFAULT_WARMUP_SECONDS = 600;
+
+export function warmupSecondsFor(timer: CompoundTimer): number {
+  return timer.warmupSeconds ?? DEFAULT_WARMUP_SECONDS;
+}
 
 export function buildSequence(timer: CompoundTimer): FlatInterval[] {
   const intervals: Omit<FlatInterval, 'intervalIndexGlobal' | 'totalIntervalsGlobal'>[] = [];
+
+  const warmupSeconds = warmupSecondsFor(timer);
+  if (warmupSeconds > 0) {
+    intervals.push({
+      id: uuidv4(),
+      kind: 'warmup' as IntervalKind,
+      label: 'Warm Up',
+      durationSeconds: warmupSeconds,
+      color: WARMUP_COLOR,
+      circuitName: 'Warm-up',
+      circuitIndex: -1,
+      setNumber: 1,
+      totalSets: 1,
+    });
+  }
 
   for (let ci = 0; ci < timer.circuits.length; ci++) {
     const circuit = timer.circuits[ci];

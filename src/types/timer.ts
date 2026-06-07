@@ -27,11 +27,13 @@ export interface CompoundTimer {
   name: string;
   circuits: Circuit[];
   audioSettings?: AudioSettings;
+  /** Lead-in warm-up in seconds, played first and counted down on open. */
+  warmupSeconds?: number;
   createdAt: string;
   updatedAt: string;
 }
 
-export type IntervalKind = 'work' | 'rest-exercise' | 'rest-set' | 'rest-circuit';
+export type IntervalKind = 'warmup' | 'work' | 'rest-exercise' | 'rest-set' | 'rest-circuit';
 
 export interface FlatInterval {
   id: string;

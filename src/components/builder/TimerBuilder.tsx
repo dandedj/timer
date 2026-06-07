@@ -20,6 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
 import { DurationPicker } from './DurationPicker';
+import { DEFAULT_WARMUP_SECONDS } from '../../engine/sequenceBuilder';
 import { TimerPreview } from './TimerPreview';
 import { SoundSettings, DEFAULT_AUDIO_SETTINGS } from './SoundSettings';
 import { colorForIndex } from '../../engine/colorPalette';
@@ -229,13 +230,22 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
         </div>
       </div>
 
-      <div className="sticky top-0 z-30 mb-8 -mx-6 px-6 pt-2 pb-3 bg-white shadow-sm">
+      <div className="sticky top-0 z-30 mb-6 -mx-6 px-6 pt-2 pb-3 bg-white shadow-sm">
         <TimerPreview timer={timer}>
           <SoundSettings
             settings={timer.audioSettings ?? DEFAULT_AUDIO_SETTINGS}
             onChange={(audioSettings) => onChange({ ...timer, audioSettings })}
           />
         </TimerPreview>
+      </div>
+
+      <div className="flex items-center gap-3 mb-8 flex-wrap">
+        <DurationPicker
+          label="Warm-up:"
+          value={timer.warmupSeconds ?? DEFAULT_WARMUP_SECONDS}
+          onChange={(s) => onChange({ ...timer, warmupSeconds: s })}
+        />
+        <span className="text-xs text-brand-navy/40">Plays first, before the workout. Set to 0:00 for none.</span>
       </div>
 
       {/* Rearrange toggle */}
