@@ -16,6 +16,10 @@ export interface EngineSnapshot {
   current: FlatInterval | null;
   next: FlatInterval | null;
   upcoming: FlatInterval[];
+  /** The full interval sequence (stable reference; for rendering a playback timeline). */
+  sequence: FlatInterval[];
+  /** 0-based index of the current interval within `sequence`. */
+  currentIndex: number;
   secondsRemaining: number;
   elapsedTotalSeconds: number;
   totalDurationSeconds: number;

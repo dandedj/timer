@@ -5,6 +5,7 @@ import { ExerciseBar } from './ExerciseBar';
 import { SetIndicator } from './SetIndicator';
 import { RepDisplay } from './RepDisplay';
 import { UpcomingPanel } from './UpcomingPanel';
+import { PlaybackTimeline } from './PlaybackTimeline';
 import type { EngineSnapshot } from '../../types/engine';
 
 interface TimerDisplayProps {
@@ -68,6 +69,14 @@ export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipB
           onSkipForward={onSkipForward}
           onSkipBack={onSkipBack}
           onReset={onReset}
+        />
+
+        <PlaybackTimeline
+          sequence={snapshot.sequence}
+          currentIndex={snapshot.currentIndex}
+          elapsedSeconds={snapshot.elapsedTotalSeconds}
+          totalSeconds={snapshot.totalDurationSeconds}
+          onJump={onJump}
         />
       </div>
 

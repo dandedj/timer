@@ -267,6 +267,8 @@ export class TimerEngine {
       current,
       next,
       upcoming,
+      sequence: state.sequence,
+      currentIndex: state.currentIndex,
       secondsRemaining: Math.ceil(state.ticksRemaining / 100),
       elapsedTotalSeconds: Math.floor(state.elapsedTotalSeconds),
       totalDurationSeconds: state.totalDurationSeconds,

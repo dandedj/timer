@@ -10,6 +10,8 @@ const NULL_SNAPSHOT: EngineSnapshot = {
   current: null,
   next: null,
   upcoming: [],
+  sequence: [],
+  currentIndex: 0,
   secondsRemaining: 0,
   elapsedTotalSeconds: 0,
   totalDurationSeconds: 0,
