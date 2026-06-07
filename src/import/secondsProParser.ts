@@ -185,6 +185,13 @@ export function parseSecondsProFile(jsonText: string): CompoundTimer {
     throw new Error('Invalid Seconds Pro file: missing timer name.');
   }
 
+  // Normalize `type`: some exports stringify it; default by structure when absent.
+  const rawType: unknown = file.type;
+  const numType = typeof rawType === 'string' ? parseInt(rawType, 10) : rawType;
+  file.type = Number.isFinite(numType as number)
+    ? (numType as number)
+    : Array.isArray(file.timers) ? 4 : 3;
+
   const circuits = parseCircuits(file);
   const now = new Date().toISOString();
 

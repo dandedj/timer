@@ -32,6 +32,7 @@ interface TimerLibraryProps {
   deleteConfirmId?: string | null;
   onImportFiles: (files: File[]) => void;
   onImportText: (text: string) => void;
+  importing?: boolean;
   importResults: ImportResult[] | null;
   onDismissResults: () => void;
 }
@@ -63,7 +64,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
   const {
     timers, deviceTimers, driveTimers, loading, driveAvailable, isConnected, authStatus,
     syncStatus, lastSyncedAt, connecting, onConnect, onSyncNow, onDuplicate, onDelete,
-    onPromote, deleteConfirmId, onImportFiles, onImportText, importResults, onDismissResults,
+    onPromote, deleteConfirmId, onImportFiles, onImportText, importing, importResults, onDismissResults,
   } = props;
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -127,7 +128,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".timer,.json,application/json"
+            accept=".timer,.seconds,.json,application/json"
             multiple
             className="hidden"
             onChange={(e) => {
@@ -158,7 +159,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
                   onMouseDown={() => setPasteOpen(true)}
                   className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left text-sm text-brand-navy hover:bg-gray-50"
                 >
-                  <Clipboard size={16} className="text-brand" /> Paste JSON
+                  <Clipboard size={16} className="text-brand" /> Paste JSON or link
                 </button>
                 <a
                   href={`${import.meta.env.BASE_URL}timer-format.md`}
@@ -182,8 +183,15 @@ export function TimerLibrary(props: TimerLibraryProps) {
       </div>
       <p className="text-sm text-brand-navy/40 mb-6 -mt-3">Tip: drag &amp; drop timer files anywhere to import.</p>
 
+      {/* Importing from a link */}
+      {importing && (
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-3 mb-6 shadow-sm text-sm text-brand-navy/70">
+          <Loader2 size={15} className="animate-spin text-brand" /> Importing from link…
+        </div>
+      )}
+
       {/* Import results */}
-      {importResults && importResults.length > 0 && (
+      {!importing && importResults && importResults.length > 0 && (
         <div className="bg-white border border-gray-200 rounded-xl px-4 py-3 mb-6 shadow-sm">
           <div className="flex items-center justify-between mb-1.5">
             <p className="text-sm font-semibold text-brand-navy">
@@ -376,18 +384,21 @@ export function TimerLibrary(props: TimerLibraryProps) {
         <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={() => setPasteOpen(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-brand-navy">Paste timer JSON</h3>
+              <h3 className="text-lg font-bold text-brand-navy">Paste JSON or a link</h3>
               <button onClick={() => setPasteOpen(false)} className="p-1 text-gray-400 hover:text-gray-600">
                 <X size={18} />
               </button>
             </div>
-            <p className="text-sm text-brand-navy/50 mb-3">Paste a .timer or Seconds Pro JSON (e.g. from AI or an email).</p>
+            <p className="text-sm text-brand-navy/50 mb-3">
+              Paste a .timer / .seconds JSON, or a link to a shared timer (e.g. an
+              <span className="font-medium"> intervaltimer.com</span> share link).
+            </p>
             <textarea
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
               autoFocus
-              rows={10}
-              placeholder='{ "name": "My Workout", "circuits": [ ... ] }'
+              rows={8}
+              placeholder={'https://www.intervaltimer.com/shared/…\n\n— or —\n\n{ "name": "My Workout", "circuits": [ … ] }'}
               className="w-full border border-gray-200 rounded-xl p-3 font-mono text-xs text-brand-navy focus:outline-none focus:ring-2 focus:ring-brand/40 resize-y"
             />
             <div className="flex justify-end gap-2 mt-4">

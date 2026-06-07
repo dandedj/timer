@@ -22,13 +22,10 @@ function isNativeShape(o: unknown): boolean {
   return isRecord(o) && typeof o.name === 'string' && Array.isArray(o.circuits);
 }
 
-/** Seconds Pro export: an object with a numeric `type` plus intervals or sub-timers. */
+/** Seconds / Seconds Pro export (.seconds file or intervaltimer.com): an object with
+ *  an intervals list or sub-timers. `type` may be a number or a numeric string. */
 function isSecondsProShape(o: unknown): boolean {
-  return (
-    isRecord(o) &&
-    typeof o.type === 'number' &&
-    (Array.isArray(o.intervals) || Array.isArray(o.timers))
-  );
+  return isRecord(o) && (Array.isArray(o.intervals) || Array.isArray(o.timers));
 }
 
 function parseAudioSettings(raw: unknown): AudioSettings | undefined {

@@ -3,6 +3,7 @@ import { TimerLibrary, type ImportResult } from '../components/library/TimerLibr
 import { useTimerLibrary } from '../hooks/useTimerLibrary';
 import { useGoogleConnection } from '../hooks/useGoogleConnection';
 import { parseImport } from '../import/parseImport';
+import { isLikelyUrl, fetchTimerText } from '../import/importFromUrl';
 
 export function LibraryPage() {
   const {
@@ -12,6 +13,7 @@ export function LibraryPage() {
   const { authStatus, driveAvailable, connecting, connect } = useGoogleConnection();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [importResults, setImportResults] = useState<ImportResult[] | null>(null);
+  const [importing, setImporting] = useState(false);
 
   const handleDelete = async (id: string) => {
     if (deleteConfirm === id) {
@@ -44,6 +46,21 @@ export function LibraryPage() {
   }, [importOne]);
 
   const handleImportText = useCallback(async (text: string) => {
+    // A pasted link → fetch the timer file (e.g. an intervaltimer.com shared timer).
+    if (isLikelyUrl(text)) {
+      const label = text.trim();
+      setImporting(true);
+      try {
+        const body = await fetchTimerText(label);
+        setImportResults([await importOne(body, label)]);
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : 'could not be fetched.';
+        setImportResults([{ name: label, ok: false, message: reason }]);
+      } finally {
+        setImporting(false);
+      }
+      return;
+    }
     setImportResults([await importOne(text, 'Pasted timer')]);
   }, [importOne]);
 
@@ -67,6 +84,7 @@ export function LibraryPage() {
       deleteConfirmId={deleteConfirm}
       onImportFiles={handleImportFiles}
       onImportText={handleImportText}
+      importing={importing}
       importResults={importResults}
       onDismissResults={() => setImportResults(null)}
     />
