@@ -22,23 +22,33 @@ export class GoogleAuthProvider implements IAuthProvider {
     this.accessToken = localStorage.getItem(TOKEN_KEY);
     const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
     if (this.accessToken && expiry && Date.now() > Number(expiry)) {
-      this.clearStored();
+      // Token expired: drop the token but KEEP the stored user, so hasStoredSession()
+      // stays true and a silent refresh can restore the Drive session on next load.
+      this.clearToken();
     }
+    // Restore the user whenever one is stored, even if the access token has expired —
+    // the expired-token path above relies on this to keep persistent sessions working.
     const storedUser = localStorage.getItem(USER_KEY);
-    if (storedUser && this.accessToken) {
+    if (storedUser) {
       try {
         this.user = JSON.parse(storedUser) as User;
       } catch {
-        this.clearStored();
+        this.clearSession();
       }
     }
   }
 
-  private clearStored(): void {
+  /** Drop only the access token (keeps the stored user so silent refresh remains possible). */
+  private clearToken(): void {
     this.accessToken = null;
-    this.user = null;
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(TOKEN_EXPIRY_KEY);
+  }
+
+  /** Drop the full session including the stored user (explicit sign-out / unrecoverable auth). */
+  private clearSession(): void {
+    this.clearToken();
+    this.user = null;
     localStorage.removeItem(USER_KEY);
   }
 
@@ -125,11 +135,16 @@ export class GoogleAuthProvider implements IAuthProvider {
     };
   }
 
-  async signOut(): Promise<void> {
-    if (this.accessToken) {
+  /**
+   * Sign out. By default this is a "soft" disconnect — it forgets the session locally
+   * but does NOT revoke the OAuth grant, so reconnecting later is one click with no
+   * re-consent. Pass `revoke: true` to fully revoke access (e.g. on a shared computer).
+   */
+  async signOut(revoke = false): Promise<void> {
+    if (revoke && this.accessToken) {
       google.accounts.oauth2.revoke(this.accessToken);
     }
-    this.clearStored();
+    this.clearSession();
     this.tokenClient = null;
   }
 
@@ -141,7 +156,8 @@ export class GoogleAuthProvider implements IAuthProvider {
     if (!this.accessToken) return false;
     const expiry = localStorage.getItem(TOKEN_EXPIRY_KEY);
     if (expiry && Date.now() > Number(expiry)) {
-      this.clearStored();
+      // Token lapsed: drop it but keep the user so a silent refresh can recover the session.
+      this.clearToken();
       return false;
     }
     return true;

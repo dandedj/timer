@@ -1,4 +1,3 @@
-import type { IStorageProvider } from '../types/storage';
 import type { CompoundTimer } from '../types/timer';
 import { AuthExpiredError } from '../auth/GoogleAuthProvider';
 
@@ -6,10 +5,29 @@ const DRIVE_API = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const APP_NAME = 'interval-timer';
 const MIME_TYPE = 'application/json';
+const DOWNLOAD_CONCURRENCY = 8;
 
-export class GoogleDriveStorageProvider implements IStorageProvider {
+/** A timer fetched from Drive, paired with its (device-local) Drive file id. */
+export interface DriveTimer {
+  timer: CompoundTimer;
+  driveFileId: string;
+}
+
+export interface DriveListResult {
+  timers: DriveTimer[];
+  /** True only if every matching file downloaded successfully. When false, callers must
+   *  NOT treat a locally-known timer's absence as a remote deletion (it may be a transient
+   *  download failure), to avoid silent data loss. */
+  complete: boolean;
+}
+
+/**
+ * Low-level Google Drive client (drive.file scope, one JSON file per timer). The
+ * sync engine in UnifiedStorageProvider drives this; it is never the UI's storage
+ * provider directly, so a flaky network can never blank the rendered library.
+ */
+export class GoogleDriveStorageProvider {
   private getToken: () => string | null;
-  private fileMap = new Map<string, string>(); // timerId → driveFileId
 
   constructor(getToken: () => string | null) {
     this.getToken = getToken;
@@ -33,65 +51,50 @@ export class GoogleDriveStorageProvider implements IStorageProvider {
     return res;
   }
 
-  async listTimers(): Promise<CompoundTimer[]> {
+  /** List all app timers from Drive, downloading their contents in parallel (capped). */
+  async listDetailed(): Promise<DriveListResult> {
     const q = `properties has { key='appName' and value='${APP_NAME}' } and trashed=false`;
-    const fields = 'files(id,name,properties)';
+    const fields = 'files(id,properties)';
     const res = await this.request(
       `${DRIVE_API}/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fields)}&pageSize=1000`
     );
     if (!res.ok) throw new Error(`Drive list failed: ${res.status}`);
     const data = await res.json();
     const files: { id: string; properties?: Record<string, string> }[] = data.files || [];
+    const targets = files.filter((f) => f.properties?.timerId);
 
-    this.fileMap.clear();
-    const timers: CompoundTimer[] = [];
+    const timers: DriveTimer[] = [];
+    // If the listing was paginated/truncated we have NOT seen every file, so callers must
+    // not treat a known timer's absence as a deletion.
+    let complete = !data.nextPageToken;
 
-    for (const file of files) {
-      const timerId = file.properties?.timerId;
-      if (!timerId) continue;
-      this.fileMap.set(timerId, file.id);
-      const timer = await this.downloadFile(file.id);
-      if (timer) timers.push(timer);
+    // Download in bounded-concurrency batches so a large library doesn't hammer the API.
+    for (let i = 0; i < targets.length; i += DOWNLOAD_CONCURRENCY) {
+      const batch = targets.slice(i, i + DOWNLOAD_CONCURRENCY);
+      const results = await Promise.allSettled(batch.map((f) => this.download(f.id)));
+      let authExpired = false;
+      results.forEach((r, j) => {
+        if (r.status === 'fulfilled' && r.value) {
+          timers.push({ timer: r.value, driveFileId: batch[j].id });
+        } else {
+          // A failed/empty download means we can't see this file this pass.
+          if (r.status === 'rejected' && r.reason instanceof AuthExpiredError) authExpired = true;
+          complete = false;
+        }
+      });
+      // Surface a mid-batch token expiry so the caller can refresh and retry the whole list.
+      if (authExpired) throw new AuthExpiredError();
     }
 
-    return timers.sort(
-      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-    );
+    return { timers, complete };
   }
 
-  async getTimer(id: string): Promise<CompoundTimer | null> {
-    let driveId = this.fileMap.get(id);
-    if (!driveId) {
-      await this.listTimers();
-      driveId = this.fileMap.get(id);
-    }
-    if (!driveId) return null;
-    return this.downloadFile(driveId);
-  }
-
-  async saveTimer(timer: CompoundTimer): Promise<void> {
-    const driveId = this.fileMap.get(timer.id);
-    if (driveId) {
-      await this.updateFile(driveId, timer);
-    } else {
-      await this.createFile(timer);
-    }
-  }
-
-  async deleteTimer(id: string): Promise<void> {
-    let driveId = this.fileMap.get(id);
-    if (!driveId) {
-      await this.listTimers();
-      driveId = this.fileMap.get(id);
-    }
-    if (!driveId) return;
-    await this.request(`${DRIVE_API}/files/${driveId}`, { method: 'DELETE' });
-    this.fileMap.delete(id);
-  }
-
-  private async downloadFile(driveFileId: string): Promise<CompoundTimer | null> {
+  async download(driveFileId: string): Promise<CompoundTimer | null> {
     const res = await this.request(`${DRIVE_API}/files/${driveFileId}?alt=media`);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (res.status === 401) throw new AuthExpiredError();
+      throw new Error(`Drive download failed: ${res.status}`);
+    }
     try {
       return (await res.json()) as CompoundTimer;
     } catch {
@@ -99,9 +102,10 @@ export class GoogleDriveStorageProvider implements IStorageProvider {
     }
   }
 
-  private async createFile(timer: CompoundTimer): Promise<void> {
+  /** Create a new Drive file for a timer; returns its Drive file id. */
+  async create(timer: CompoundTimer): Promise<string> {
     const metadata = {
-      name: `${timer.name}.timer.json`,
+      name: `${timer.name || 'timer'}.timer.json`,
       mimeType: MIME_TYPE,
       properties: {
         appName: APP_NAME,
@@ -121,26 +125,24 @@ export class GoogleDriveStorageProvider implements IStorageProvider {
 
     const res = await this.request(`${UPLOAD_API}/files?uploadType=multipart`, {
       method: 'POST',
-      headers: {
-        'Content-Type': `multipart/related; boundary=${boundary}`,
-      },
+      headers: { 'Content-Type': `multipart/related; boundary=${boundary}` },
       body,
     });
 
     if (!res.ok) throw new Error(`Drive create failed: ${res.status}`);
     const created = await res.json();
-    this.fileMap.set(timer.id, created.id);
+    return created.id as string;
   }
 
-  private async updateFile(driveFileId: string, timer: CompoundTimer): Promise<void> {
-    // Update metadata (file name)
-    await this.request(`${DRIVE_API}/files/${driveFileId}`, {
+  /** Overwrite an existing Drive file's name + content. */
+  async update(driveFileId: string, timer: CompoundTimer): Promise<void> {
+    const renameRes = await this.request(`${DRIVE_API}/files/${driveFileId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: `${timer.name}.timer.json` }),
+      body: JSON.stringify({ name: `${timer.name || 'timer'}.timer.json` }),
     });
+    if (!renameRes.ok) throw new Error(`Drive rename failed: ${renameRes.status}`);
 
-    // Update content
     const res = await this.request(
       `${UPLOAD_API}/files/${driveFileId}?uploadType=media`,
       {
@@ -151,5 +153,13 @@ export class GoogleDriveStorageProvider implements IStorageProvider {
     );
 
     if (!res.ok) throw new Error(`Drive update failed: ${res.status}`);
+  }
+
+  async remove(driveFileId: string): Promise<void> {
+    const res = await this.request(`${DRIVE_API}/files/${driveFileId}`, { method: 'DELETE' });
+    // 404 is fine — already gone.
+    if (!res.ok && res.status !== 404) {
+      throw new Error(`Drive delete failed: ${res.status}`);
+    }
   }
 }

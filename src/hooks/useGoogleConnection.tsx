@@ -1,140 +1,156 @@
 import { createContext, useContext, useState, useCallback, useMemo, useEffect, useRef, type ReactNode } from 'react';
-import type { IStorageProvider } from '../types/storage';
 import type { User } from '../auth/IAuthProvider';
-import { GoogleAuthProvider, AuthExpiredError } from '../auth/GoogleAuthProvider';
+import type { AuthStatus, SyncStatus } from '../types/sync';
+import { GoogleAuthProvider } from '../auth/GoogleAuthProvider';
 import { GoogleDriveStorageProvider } from '../storage/GoogleDriveStorageProvider';
-import { LocalStorageProvider } from '../storage/LocalStorageProvider';
+import { UnifiedStorageProvider } from '../storage/UnifiedStorageProvider';
 
 interface GoogleConnectionState {
+  authStatus: AuthStatus;
   isConnected: boolean;
   user: User | null;
   connecting: boolean;
+  syncStatus: SyncStatus;
+  lastSyncedAt?: string;
+  driveAvailable: boolean;
   connect: () => Promise<void>;
-  disconnect: () => Promise<void>;
-  storageProvider: IStorageProvider;
+  disconnect: (revoke?: boolean) => Promise<void>;
+  syncNow: () => Promise<void>;
+  storage: UnifiedStorageProvider;
 }
-
-const GoogleConnectionContext = createContext<GoogleConnectionState>({
-  isConnected: false,
-  user: null,
-  connecting: false,
-  connect: async () => {},
-  disconnect: async () => {},
-  storageProvider: new LocalStorageProvider(),
-});
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
+const GoogleConnectionContext = createContext<GoogleConnectionState>({
+  authStatus: 'local',
+  isConnected: false,
+  user: null,
+  connecting: false,
+  syncStatus: 'idle',
+  driveAvailable: false,
+  connect: async () => {},
+  disconnect: async () => {},
+  syncNow: async () => {},
+  storage: new UnifiedStorageProvider(),
+});
+
 export function GoogleConnectionProvider({ children }: { children: ReactNode }) {
-  const [auth] = useState(() => CLIENT_ID ? new GoogleAuthProvider(CLIENT_ID) : null);
-  const [isConnected, setIsConnected] = useState(() => auth?.isAuthenticated() ?? false);
+  const [auth] = useState(() => (CLIENT_ID ? new GoogleAuthProvider(CLIENT_ID) : null));
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(() =>
+    auth?.hasStoredSession() ? 'restoring' : 'local'
+  );
   const [user, setUser] = useState<User | null>(null);
   const [connecting, setConnecting] = useState(false);
-  const localProvider = useMemo(() => new LocalStorageProvider(), []);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | undefined>(undefined);
+
+  // Silent token refresh, deduplicated across concurrent callers.
   const refreshingRef = useRef<Promise<boolean> | null>(null);
-
-  // Restore session on mount — try silent token refresh if token expired but session exists
-  useEffect(() => {
-    if (!auth) return;
-    if (auth.isAuthenticated()) {
-      auth.getCurrentUser().then(u => {
-        if (u) {
-          setUser(u);
-          setIsConnected(true);
-        }
-      });
-    } else if (auth.hasStoredSession()) {
-      // Token expired but user was previously connected — try silent refresh
-      auth.refreshToken().then(success => {
-        if (success) {
-          auth.getCurrentUser().then(u => {
-            if (u) {
-              setUser(u);
-              setIsConnected(true);
-            }
-          });
-        }
-      });
-    }
+  const tryRefresh = useCallback(async (): Promise<boolean> => {
+    if (!auth) return false;
+    if (refreshingRef.current) return refreshingRef.current;
+    const p = auth.refreshToken();
+    refreshingRef.current = p;
+    const ok = await p;
+    refreshingRef.current = null;
+    return ok;
   }, [auth]);
+  const tryRefreshRef = useRef(tryRefresh);
+  useEffect(() => { tryRefreshRef.current = tryRefresh; }, [tryRefresh]);
 
-  const driveProvider = useMemo(() => {
-    if (!auth) return null;
-    return new GoogleDriveStorageProvider(() => auth.getAccessToken());
+  // One stable storage provider for the whole app — it NEVER swaps, so the library
+  // is never re-fetched-and-replaced out from under the user.
+  const [storage] = useState(() => new UnifiedStorageProvider({
+    onStatus: (s, t) => {
+      setSyncStatus(s);
+      if (t) setLastSyncedAt(t);
+    },
+    tryRefresh: () => tryRefreshRef.current(),
+  }));
+
+  const driveProvider = useMemo(
+    () => (auth ? new GoogleDriveStorageProvider(() => auth.getAccessToken()) : null),
+    [auth]
+  );
+
+  const goConnected = useCallback(async () => {
+    if (!driveProvider) return;
+    storage.setDrive(driveProvider);
+    setAuthStatus('connected');
+    await storage.sync();
+  }, [driveProvider, storage]);
+
+  // Restore the session on mount: resolve a real connection status before committing.
+  useEffect(() => {
+    if (!auth) { setAuthStatus('local'); return; }
+    let cancelled = false;
+    (async () => {
+      if (auth.isAuthenticated()) {
+        const u = await auth.getCurrentUser();
+        if (!cancelled && u) setUser(u);
+        if (!cancelled) await goConnected();
+      } else if (auth.hasStoredSession()) {
+        const stored = await auth.getCurrentUser();
+        if (!cancelled && stored) setUser(stored);
+        const ok = await tryRefresh();
+        if (cancelled) return;
+        if (ok) {
+          const u = await auth.getCurrentUser();
+          if (!cancelled && u) setUser(u);
+          await goConnected();
+        } else {
+          setAuthStatus('local');
+        }
+      } else {
+        setAuthStatus('local');
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth]);
 
   const connect = useCallback(async () => {
-    if (!auth) return;
+    if (!auth || !driveProvider) return;
     setConnecting(true);
     try {
       const u = await auth.signIn();
       setUser(u);
-      setIsConnected(true);
+      await goConnected();
     } catch (err) {
-      if (err instanceof Error && err.message === 'popup_closed_by_user') {
-        // user closed popup, not an error
-      } else {
+      if (!(err instanceof Error && err.message === 'popup_closed_by_user')) {
         console.error('Google sign-in failed:', err);
       }
     } finally {
       setConnecting(false);
     }
-  }, [auth]);
+  }, [auth, driveProvider, goConnected]);
 
-  const disconnect = useCallback(async () => {
+  const disconnect = useCallback(async (revoke = false) => {
     if (!auth) return;
-    await auth.signOut();
+    // Flush anything pending before going offline so nothing is lost.
+    await storage.sync().catch(() => {});
+    await auth.signOut(revoke);
+    storage.setDrive(null);
     setUser(null);
-    setIsConnected(false);
-  }, [auth]);
+    setAuthStatus('local');
+    setSyncStatus('idle');
+  }, [auth, storage]);
 
-  // Try a silent token refresh, returns true on success. Deduplicates concurrent calls.
-  const tryRefresh = useCallback(async (): Promise<boolean> => {
-    if (!auth) return false;
-    if (refreshingRef.current) return refreshingRef.current;
-    const promise = auth.refreshToken();
-    refreshingRef.current = promise;
-    const success = await promise;
-    refreshingRef.current = null;
-    return success;
-  }, [auth]);
-
-  const storageProvider = useMemo<IStorageProvider>(() => {
-    if (!isConnected || !driveProvider) return localProvider;
-
-    // Helper: wrap a Drive operation with silent token refresh on 401
-    function withRetry<T>(op: () => Promise<T>, fallback: () => Promise<T>): Promise<T> {
-      return op().catch(async (err) => {
-        if (err instanceof AuthExpiredError) {
-          const refreshed = await tryRefresh();
-          if (refreshed) {
-            return op();
-          }
-          // Refresh failed — disconnect and fall back to local
-          setIsConnected(false);
-          setUser(null);
-          return fallback();
-        }
-        throw err;
-      });
-    }
-
-    return {
-      listTimers: () => withRetry(() => driveProvider.listTimers(), () => localProvider.listTimers()),
-      getTimer: (id) => withRetry(() => driveProvider.getTimer(id), () => localProvider.getTimer(id)),
-      saveTimer: (timer) => withRetry(() => driveProvider.saveTimer(timer), () => localProvider.saveTimer(timer)),
-      deleteTimer: (id) => withRetry(() => driveProvider.deleteTimer(id), () => localProvider.deleteTimer(id)),
-    };
-  }, [isConnected, driveProvider, localProvider, tryRefresh]);
+  const syncNow = useCallback(() => storage.sync(), [storage]);
 
   const value = useMemo<GoogleConnectionState>(() => ({
-    isConnected,
+    authStatus,
+    isConnected: authStatus === 'connected',
     user,
     connecting,
+    syncStatus,
+    lastSyncedAt,
+    driveAvailable: !!CLIENT_ID,
     connect,
     disconnect,
-    storageProvider,
-  }), [isConnected, user, connecting, connect, disconnect, storageProvider]);
+    syncNow,
+    storage,
+  }), [authStatus, user, connecting, syncStatus, lastSyncedAt, connect, disconnect, syncNow, storage]);
 
   return (
     <GoogleConnectionContext.Provider value={value}>

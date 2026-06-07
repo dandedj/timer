@@ -8,10 +8,10 @@ import { StorageProvider } from './storage/storageContext';
 import { GoogleConnectionProvider, useGoogleConnection } from './hooks/useGoogleConnection';
 
 function AppRoutes() {
-  const { storageProvider } = useGoogleConnection();
+  const { storage } = useGoogleConnection();
 
   return (
-    <StorageProvider provider={storageProvider}>
+    <StorageProvider provider={storage}>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route element={<AppShell />}>

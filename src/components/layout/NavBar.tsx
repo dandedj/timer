@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Library, Cloud, CloudOff, Loader2 } from 'lucide-react';
-import { useGoogleConnection, isGoogleDriveAvailable } from '../../hooks/useGoogleConnection';
+import { Library } from 'lucide-react';
+import { isGoogleDriveAvailable } from '../../hooks/useGoogleConnection';
+import { ConnectionMenu } from './ConnectionMenu';
 
 export function NavBar() {
   const location = useLocation();
-  const { isConnected, user, connecting, connect, disconnect } = useGoogleConnection();
   const driveAvailable = isGoogleDriveAvailable();
 
   return (
@@ -26,36 +26,7 @@ export function NavBar() {
           My Timers
         </Link>
 
-        {driveAvailable && (
-          isConnected ? (
-            <button
-              onClick={disconnect}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-white/10 transition-colors text-sm font-medium"
-              title="Disconnect Google Drive"
-            >
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" className="h-6 w-6 rounded-full" referrerPolicy="no-referrer" />
-              ) : (
-                <Cloud size={16} />
-              )}
-              <span className="hidden sm:inline">{user?.displayName ?? 'Connected'}</span>
-              <CloudOff size={14} className="opacity-60" />
-            </button>
-          ) : (
-            <button
-              onClick={connect}
-              disabled={connecting}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium disabled:opacity-50"
-            >
-              {connecting ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Cloud size={16} />
-              )}
-              Connect Drive
-            </button>
-          )
-        )}
+        {driveAvailable && <ConnectionMenu />}
       </div>
     </nav>
   );

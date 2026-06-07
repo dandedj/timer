@@ -1,77 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import { TimerLibrary } from '../components/library/TimerLibrary';
+import { useState, useCallback } from 'react';
+import { TimerLibrary, type ImportResult } from '../components/library/TimerLibrary';
 import { useTimerLibrary } from '../hooks/useTimerLibrary';
 import { useGoogleConnection } from '../hooks/useGoogleConnection';
-import { LocalStorageProvider } from '../storage/LocalStorageProvider';
-import type { CompoundTimer } from '../types/timer';
-
-const MIGRATION_DISMISSED_KEY = 'google-drive:migration-dismissed';
-
-function parseTimerFile(text: string): CompoundTimer {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(text);
-  } catch {
-    throw new Error('Invalid .timer file: could not parse JSON.');
-  }
-  const timer = raw as CompoundTimer;
-  if (!timer.name || !Array.isArray(timer.circuits)) {
-    throw new Error('Invalid .timer file: missing name or circuits.');
-  }
-  const now = new Date().toISOString();
-  return { ...timer, id: uuidv4(), createdAt: now, updatedAt: now };
-}
+import { parseImport } from '../import/parseImport';
 
 export function LibraryPage() {
-  const { timers, loading, duplicateTimer, deleteTimer, saveTimer, refresh } = useTimerLibrary();
-  const { isConnected, storageProvider } = useGoogleConnection();
+  const {
+    deviceTimers, driveTimers, loading, isConnected, syncStatus, lastSyncedAt,
+    syncNow, duplicateTimer, deleteTimer, saveTimer, promoteToDrive,
+  } = useTimerLibrary();
+  const { authStatus, driveAvailable, connecting, connect } = useGoogleConnection();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [importError, setImportError] = useState<string | null>(null);
-
-  // Migration state
-  const [localTimers, setLocalTimers] = useState<CompoundTimer[]>([]);
-  const [migrating, setMigrating] = useState(false);
-  const [migrationDismissed, setMigrationDismissed] = useState(
-    () => localStorage.getItem(MIGRATION_DISMISSED_KEY) === 'true'
-  );
-
-  // Check for local timers when connected to Drive
-  useEffect(() => {
-    if (isConnected && !migrationDismissed) {
-      const local = new LocalStorageProvider();
-      local.listTimers().then(setLocalTimers);
-    } else {
-      setLocalTimers([]);
-    }
-  }, [isConnected, migrationDismissed]);
-
-  const handleMigrate = useCallback(async () => {
-    setMigrating(true);
-    try {
-      for (const timer of localTimers) {
-        await storageProvider.saveTimer(timer);
-      }
-      // Clear local storage after successful upload
-      const local = new LocalStorageProvider();
-      for (const timer of localTimers) {
-        await local.deleteTimer(timer.id);
-      }
-      setLocalTimers([]);
-      setMigrationDismissed(true);
-      localStorage.setItem(MIGRATION_DISMISSED_KEY, 'true');
-      await refresh();
-    } catch (err) {
-      console.error('Migration failed:', err);
-    } finally {
-      setMigrating(false);
-    }
-  }, [localTimers, storageProvider, refresh]);
-
-  const handleDismissMigration = useCallback(() => {
-    setMigrationDismissed(true);
-    localStorage.setItem(MIGRATION_DISMISSED_KEY, 'true');
-  }, []);
+  const [importResults, setImportResults] = useState<ImportResult[] | null>(null);
 
   const handleDelete = async (id: string) => {
     if (deleteConfirm === id) {
@@ -83,36 +23,51 @@ export function LibraryPage() {
     }
   };
 
-  const handleImport = async (file: File) => {
+  const importOne = useCallback(async (text: string, label: string): Promise<ImportResult> => {
     try {
-      const text = await file.text();
-      const timer = parseTimerFile(text);
+      const timer = parseImport(text);
       await saveTimer(timer);
+      return { name: timer.name || label, ok: true };
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to import file';
-      setImportError(msg);
-      setTimeout(() => setImportError(null), 5000);
+      const reason = err instanceof Error ? err.message : 'could not be read.';
+      return { name: label, ok: false, message: reason };
     }
-  };
+  }, [saveTimer]);
 
-  const showMigration = isConnected && !migrationDismissed && localTimers.length > 0;
+  const handleImportFiles = useCallback(async (files: File[]) => {
+    const results: ImportResult[] = [];
+    for (const file of files) {
+      const text = await file.text().catch(() => '');
+      results.push(await importOne(text, file.name));
+    }
+    setImportResults(results);
+  }, [importOne]);
+
+  const handleImportText = useCallback(async (text: string) => {
+    setImportResults([await importOne(text, 'Pasted timer')]);
+  }, [importOne]);
 
   return (
     <TimerLibrary
-      timers={timers}
+      deviceTimers={deviceTimers}
+      driveTimers={driveTimers}
       loading={loading}
+      driveAvailable={driveAvailable}
+      isConnected={isConnected}
+      authStatus={authStatus}
+      syncStatus={syncStatus}
+      lastSyncedAt={lastSyncedAt}
+      connecting={connecting}
+      onConnect={connect}
+      onSyncNow={syncNow}
       onDuplicate={duplicateTimer}
       onDelete={handleDelete}
-      onImport={handleImport}
-      importError={importError}
+      onPromote={promoteToDrive}
       deleteConfirmId={deleteConfirm}
-      isCloudConnected={isConnected}
-      migration={showMigration ? {
-        localCount: localTimers.length,
-        migrating,
-        onMigrate: handleMigrate,
-        onDismiss: handleDismissMigration,
-      } : null}
+      onImportFiles={handleImportFiles}
+      onImportText={handleImportText}
+      importResults={importResults}
+      onDismissResults={() => setImportResults(null)}
     />
   );
 }

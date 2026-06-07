@@ -1,19 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useStorage } from '../storage/storageContext';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
+import { useGoogleConnection } from './useGoogleConnection';
 import type { CompoundTimer } from '../types/timer';
 import { v4 as uuidv4 } from 'uuid';
 
 export function useTimerLibrary() {
-  const storage = useStorage();
-  const [timers, setTimers] = useState<CompoundTimer[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { storage, authStatus, isConnected, syncStatus, lastSyncedAt, syncNow } = useGoogleConnection();
 
-  const refresh = useCallback(async () => {
-    setTimers(await storage.listTimers());
-    setLoading(false);
-  }, [storage]);
+  // Subscribe to the local cache. The list grows/updates in place on save, delete,
+  // background sync, or a change in another tab — it is never replaced by an async
+  // provider swap, so it cannot flash empty.
+  const timers = useSyncExternalStore(storage.subscribe, storage.getLibrarySnapshot);
 
-  useEffect(() => { refresh(); }, [refresh]);
+  const deviceTimers = useMemo(() => timers.filter((t) => t.origin === 'device'), [timers]);
+  const driveTimers = useMemo(() => timers.filter((t) => t.origin === 'drive'), [timers]);
+
+  // Only ever a true blocking state on a cold start with no cache yet (e.g. a returning
+  // Drive user whose local cache was cleared by the old migration) while we restore.
+  const loading = authStatus === 'restoring' && timers.length === 0;
 
   const saveTimer = useCallback(async (timer: CompoundTimer) => {
     const now = new Date().toISOString();
@@ -24,34 +27,45 @@ export function useTimerLibrary() {
       id: timer.id || uuidv4(),
     };
     await storage.saveTimer(toSave);
-    await refresh();
     return toSave;
-  }, [storage, refresh]);
+  }, [storage]);
 
-  const deleteTimer = useCallback(async (id: string) => {
-    await storage.deleteTimer(id);
-    await refresh();
-  }, [storage, refresh]);
+  const deleteTimer = useCallback((id: string) => storage.deleteTimer(id), [storage]);
 
   const duplicateTimer = useCallback(async (id: string) => {
     const original = await storage.getTimer(id);
     if (!original) return;
+    const now = new Date().toISOString();
     const copy: CompoundTimer = {
       ...original,
       id: uuidv4(),
       name: `${original.name} (copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      circuits: original.circuits.map(c => ({
+      createdAt: now,
+      updatedAt: now,
+      circuits: original.circuits.map((c) => ({
         ...c,
         id: uuidv4(),
-        exercises: c.exercises.map(e => ({ ...e, id: uuidv4() })),
+        exercises: c.exercises.map((e) => ({ ...e, id: uuidv4() })),
       })),
     };
     await storage.saveTimer(copy);
-    await refresh();
     return copy;
-  }, [storage, refresh]);
+  }, [storage]);
 
-  return { timers, loading, saveTimer, deleteTimer, duplicateTimer, refresh };
+  const promoteToDrive = useCallback((id: string) => storage.promoteToDrive(id), [storage]);
+
+  return {
+    timers,
+    deviceTimers,
+    driveTimers,
+    loading,
+    isConnected,
+    syncStatus,
+    lastSyncedAt,
+    syncNow,
+    saveTimer,
+    deleteTimer,
+    duplicateTimer,
+    promoteToDrive,
+  };
 }
