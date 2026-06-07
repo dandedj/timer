@@ -11,32 +11,37 @@ export function warmupSecondsFor(timer: CompoundTimer): number {
   return timer.warmupSeconds ?? DEFAULT_WARMUP_SECONDS;
 }
 
-/** Number of rest-between-exercise gaps across the whole timer (matches buildSequence). */
-export function restGapCount(timer: CompoundTimer): number {
-  let gaps = 0;
-  for (const c of timer.circuits) {
-    const work = c.exercises.length * c.sets;
-    if (work > 1) gaps += work - 1;
+/** Format a rest duration as a readable time: "15s", or "M:SS" for a minute or more. */
+export function formatRest(seconds: number): string {
+  if (seconds >= 60) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
   }
-  return gaps;
+  return `${seconds}s`;
 }
 
-/** Everything except rest-between-exercises: warm-up + work + rest-after-circuit. */
+/** Number of rest-after-circuit gaps (a rest follows every circuit except the last). */
+export function circuitRestGapCount(timer: CompoundTimer): number {
+  return Math.max(0, timer.circuits.length - 1);
+}
+
+/** Everything except rest-between-circuits: warm-up + work + rest-between-exercises. */
 export function fixedDurationSeconds(timer: CompoundTimer): number {
   let total = warmupSecondsFor(timer);
-  for (let ci = 0; ci < timer.circuits.length; ci++) {
-    const c = timer.circuits[ci];
+  for (const c of timer.circuits) {
     const workPerSet = c.exercises.reduce((s, e) => s + e.durationSeconds, 0);
     total += workPerSet * c.sets;
-    const isLast = ci === timer.circuits.length - 1;
-    if (!isLast) total += c.restBetweenCircuitsSeconds;
+    const work = c.exercises.length * c.sets;
+    const exerciseRestGaps = work > 1 ? work - 1 : 0;
+    total += exerciseRestGaps * c.restBetweenExercisesSeconds;
   }
   return total;
 }
 
-/** The rest-between-exercises (seconds) that makes the total hit the target class length. */
+/** The rest-between-circuits (seconds) that makes the total hit the target class length. */
 export function computeAutoRest(timer: CompoundTimer): number {
-  const gaps = restGapCount(timer);
+  const gaps = circuitRestGapCount(timer);
   if (gaps <= 0) return 0;
   const target = timer.targetDurationSeconds ?? DEFAULT_TARGET_SECONDS;
   const r = Math.round((target - fixedDurationSeconds(timer)) / gaps);

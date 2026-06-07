@@ -20,7 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
 import { DurationPicker } from './DurationPicker';
-import { DEFAULT_WARMUP_SECONDS, computeAutoRest } from '../../engine/sequenceBuilder';
+import { DEFAULT_WARMUP_SECONDS, computeAutoRest, formatRest } from '../../engine/sequenceBuilder';
 import { TimerPreview } from './TimerPreview';
 import { SoundSettings, DEFAULT_AUDIO_SETTINGS } from './SoundSettings';
 import { colorForIndex } from '../../engine/colorPalette';
@@ -46,7 +46,6 @@ function getExerciseOffsetForCircuit(timer: CompoundTimer, circuitIndex: number)
 function SortableCircuitCard({
   circuit,
   colorOffset,
-  restLocked,
   onChange,
   onDelete,
   onDuplicate,
@@ -54,7 +53,6 @@ function SortableCircuitCard({
 }: {
   circuit: Circuit;
   colorOffset: number;
-  restLocked: boolean;
   onChange: (c: Circuit) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -89,7 +87,6 @@ function SortableCircuitCard({
       <CircuitCard
         circuit={circuit}
         colorOffset={colorOffset}
-        restLocked={restLocked}
         onChange={onChange}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
@@ -113,13 +110,13 @@ function InsertCircuitButton({ onClick }: { onClick: () => void }) {
 export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
   const [rearranging, setRearranging] = useState(false);
 
-  // When auto-rest is on, keep every circuit's rest-between-exercises at the value that
+  // When auto-rest is on, keep every circuit's rest-between-circuits at the value that
   // fills the target class length. Recomputes as exercises/circuits/target change.
   useEffect(() => {
     if (!timer.autoRest) return;
     const r = computeAutoRest(timer);
-    if (timer.circuits.some((c) => c.restBetweenExercisesSeconds !== r)) {
-      onChange({ ...timer, circuits: timer.circuits.map((c) => ({ ...c, restBetweenExercisesSeconds: r })) });
+    if (timer.circuits.some((c) => c.restBetweenCircuitsSeconds !== r)) {
+      onChange({ ...timer, circuits: timer.circuits.map((c) => ({ ...c, restBetweenCircuitsSeconds: r })) });
     }
   }, [timer, onChange]);
 
@@ -265,20 +262,26 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
         <span className="text-xs text-brand-navy/40">Plays first, before the workout. Set to 0:00 for none.</span>
       </div>
 
-      <label className="flex items-center gap-2.5 mb-8 cursor-pointer select-none w-fit">
-        <input
-          type="checkbox"
-          checked={!!timer.autoRest}
-          onChange={(e) => onChange({ ...timer, autoRest: e.target.checked })}
-          className="w-4 h-4 accent-brand rounded"
-        />
-        <span className="text-sm font-medium text-brand-navy/70">
-          Auto-adjust rest between exercises to fill the class length
-        </span>
-        <span className="text-xs text-brand-navy/40">
-          (set the class length in the timeline above)
-        </span>
-      </label>
+      <div className="flex items-center gap-3 mb-8 flex-wrap">
+        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={!!timer.autoRest}
+            onChange={(e) => onChange({ ...timer, autoRest: e.target.checked })}
+            className="w-4 h-4 accent-brand rounded"
+          />
+          <span className="text-sm font-medium text-brand-navy/70">
+            Auto-adjust rest between circuits to fill the class length
+          </span>
+        </label>
+        {timer.autoRest ? (
+          <span className="px-2.5 py-1 rounded-lg text-sm font-semibold bg-brand/10 text-brand">
+            Calculated rest: {formatRest(computeAutoRest(timer))} between circuits
+          </span>
+        ) : (
+          <span className="text-xs text-brand-navy/40">(set the class length in the timeline above)</span>
+        )}
+      </div>
 
       {/* Rearrange toggle */}
       {timer.circuits.length > 1 && (
@@ -306,7 +309,6 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
                   key={circuit.id}
                   circuit={circuit}
                   colorOffset={getExerciseOffsetForCircuit(timer, i)}
-                  restLocked={!!timer.autoRest}
                   onChange={(c) => updateCircuit(i, c)}
                   onDelete={() => deleteCircuit(i)}
                   onDuplicate={() => duplicateCircuit(i)}
@@ -328,19 +330,27 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
                 <CircuitCard
                   circuit={circuit}
                   colorOffset={getExerciseOffsetForCircuit(timer, i)}
-                  restLocked={!!timer.autoRest}
                   onChange={(c) => updateCircuit(i, c)}
                   onDelete={() => deleteCircuit(i)}
                   onDuplicate={() => duplicateCircuit(i)}
                 />
                 {!isLast && (
                   <div className="flex items-center gap-2 px-4 py-2 mb-1">
+                    {timer.autoRest ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-brand-navy/50 font-medium">Rest after circuit:</span>
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand/10 text-brand" title="Auto-calculated to fill the class length">
+                          Auto · {formatRest(circuit.restBetweenCircuitsSeconds)}
+                        </span>
+                      </div>
+                    ) : (
                     <DurationPicker
                       label="Rest after circuit:"
                       value={circuit.restBetweenCircuitsSeconds}
                       onChange={(s) => updateCircuit(i, { ...circuit, restBetweenCircuitsSeconds: s })}
                       presets={[10, 15, 20, 30, 40, 45, 60]}
                     />
+                    )}
                   </div>
                 )}
               </div>
