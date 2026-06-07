@@ -21,19 +21,17 @@ function formatTime(totalSeconds: number): string {
 export function TimelineBar({ timer }: TimelineBarProps) {
   const [expanded, setExpanded] = useState(false);
   const [targetMinutes, setTargetMinutes] = useState(45);
-  const [waitMinutes, setWaitMinutes] = useState(2);
 
-  // The warm-up is now a real timer interval (part of the sequence/total below), so
-  // planning only needs the pre-class "wait" time on top of it.
+  // The warm-up is a real timer interval (part of the sequence/total below), so it is
+  // counted directly against the class target — no separate pre-timer placeholder.
   const sequence = useMemo(() => buildSequence(timer), [timer]);
   const totalSeconds = useMemo(
     () => sequence.reduce((sum, i) => sum + i.durationSeconds, 0),
     [sequence],
   );
 
-  const preTimerSeconds = waitMinutes * 60;
   const targetSeconds = targetMinutes * 60;
-  const availableSeconds = targetSeconds - preTimerSeconds;
+  const availableSeconds = targetSeconds;
   const remainingSeconds = availableSeconds - totalSeconds;
   const overflows = totalSeconds > availableSeconds;
 
@@ -102,27 +100,6 @@ export function TimelineBar({ timer }: TimelineBarProps) {
             <span className="text-xs text-white/40">min</span>
           </div>
         </div>
-
-        <div className="w-px h-4 bg-white/15" />
-
-        {/* Wait time */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-white/60 uppercase tracking-wider font-medium whitespace-nowrap">
-            Wait
-          </span>
-          <input
-            type="number"
-            min={0}
-            max={30}
-            value={waitMinutes}
-            onChange={(e) => {
-              const v = parseInt(e.target.value, 10);
-              if (!isNaN(v) && v >= 0) setWaitMinutes(v);
-            }}
-            className="w-12 bg-white/10 text-white text-xs font-mono rounded-lg px-2 py-1 text-center outline-none focus:bg-white/20 transition-colors [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <span className="text-xs text-white/40">min</span>
-        </div>
       </div>
 
       {/* Collapsed bar */}
@@ -131,17 +108,6 @@ export function TimelineBar({ timer }: TimelineBarProps) {
         className="cursor-pointer group"
       >
         <div className="relative h-6 bg-white/10 rounded-lg overflow-hidden flex">
-          {/* Pre-class wait block */}
-          {preTimerSeconds > 0 && (
-            <div
-              className="h-full bg-white/15 flex items-center justify-center"
-              style={{ width: `${(preTimerSeconds / targetSeconds) * 100}%` }}
-            >
-              <span className="text-[9px] text-white/40 truncate px-1">
-                {waitMinutes}m wait
-              </span>
-            </div>
-          )}
           {/* Workout segments */}
           {sequence.map((interval, idx) => {
             const widthPct = (interval.durationSeconds / targetSeconds) * 100;
