@@ -9,6 +9,7 @@ interface TimerCardProps {
   origin: TimerOrigin;
   dirty?: boolean;
   isConnected?: boolean;
+  showBadge?: boolean;
   onDuplicate: () => void;
   onDelete: () => void;
   onPromote?: () => void;
@@ -37,7 +38,7 @@ function LocationBadge({ origin, dirty }: { origin: TimerOrigin; dirty?: boolean
   );
 }
 
-export function TimerCard({ timer, origin, dirty, isConnected, onDuplicate, onDelete, onPromote, confirmingDelete }: TimerCardProps) {
+export function TimerCard({ timer, origin, dirty, isConnected, showBadge = true, onDuplicate, onDelete, onPromote, confirmingDelete }: TimerCardProps) {
   const navigate = useNavigate();
 
   const exportTimer = () => {
@@ -65,7 +66,7 @@ export function TimerCard({ timer, origin, dirty, isConnected, onDuplicate, onDe
           <div className="flex items-start justify-between mb-3 gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-bold text-lg text-brand-navy">{timer.name || 'Untitled Timer'}</h3>
-              <LocationBadge origin={origin} dirty={dirty} />
+              {showBadge && <LocationBadge origin={origin} dirty={dirty} />}
             </div>
             <span className="text-sm font-mono font-semibold text-brand bg-brand/10 px-2.5 py-0.5 rounded-full shrink-0">
               {minutes}:{seconds.toString().padStart(2, '0')}

@@ -6,7 +6,7 @@ import { parseImport } from '../import/parseImport';
 
 export function LibraryPage() {
   const {
-    deviceTimers, driveTimers, loading, isConnected, syncStatus, lastSyncedAt,
+    timers, deviceTimers, driveTimers, loading, isConnected, syncStatus, lastSyncedAt,
     syncNow, duplicateTimer, deleteTimer, saveTimer, promoteToDrive,
   } = useTimerLibrary();
   const { authStatus, driveAvailable, connecting, connect } = useGoogleConnection();
@@ -49,6 +49,7 @@ export function LibraryPage() {
 
   return (
     <TimerLibrary
+      timers={timers}
       deviceTimers={deviceTimers}
       driveTimers={driveTimers}
       loading={loading}

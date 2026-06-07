@@ -14,6 +14,7 @@ export interface ImportResult {
 }
 
 interface TimerLibraryProps {
+  timers: LibraryTimer[];
   deviceTimers: LibraryTimer[];
   driveTimers: LibraryTimer[];
   loading: boolean;
@@ -60,7 +61,7 @@ function SkeletonCard() {
 
 export function TimerLibrary(props: TimerLibraryProps) {
   const {
-    deviceTimers, driveTimers, loading, driveAvailable, isConnected, authStatus,
+    timers, deviceTimers, driveTimers, loading, driveAvailable, isConnected, authStatus,
     syncStatus, lastSyncedAt, connecting, onConnect, onSyncNow, onDuplicate, onDelete,
     onPromote, deleteConfirmId, onImportFiles, onImportText, importResults, onDismissResults,
   } = props;
@@ -113,6 +114,9 @@ export function TimerLibrary(props: TimerLibraryProps) {
 
   const totalTimers = deviceTimers.length + driveTimers.length;
   const showEmpty = !loading && totalTimers === 0 && authStatus !== 'restoring';
+  // The two-section local/Drive split only makes sense while connected (or restoring).
+  // When disconnected we collapse to one plain list so there's no stray "Drive" section.
+  const twoSection = driveAvailable && (isConnected || authStatus === 'restoring');
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-8">
@@ -225,20 +229,34 @@ export function TimerLibrary(props: TimerLibraryProps) {
             </button>
           )}
         </div>
-      ) : !driveAvailable ? (
-        // No Drive configured — a single plain list.
-        <div className="grid gap-4">
-          {[...deviceTimers, ...driveTimers].map((t) => (
-            <TimerCard
-              key={t.id}
-              timer={t}
-              origin={t.origin}
-              dirty={t.dirty}
-              onDuplicate={() => onDuplicate(t.id)}
-              onDelete={() => onDelete(t.id)}
-              confirmingDelete={deleteConfirmId === t.id}
-            />
-          ))}
+      ) : !twoSection ? (
+        // Disconnected (or Drive not configured) — one plain list, no Drive section.
+        <div className="space-y-4">
+          {driveAvailable && !isConnected && (
+            <button
+              onClick={onConnect}
+              disabled={connecting}
+              className="flex w-full items-center gap-3 bg-brand/5 border border-brand/15 rounded-xl px-4 py-3 text-left hover:bg-brand/10 transition-colors disabled:opacity-50"
+            >
+              {connecting ? <Loader2 size={18} className="text-brand animate-spin" /> : <Cloud size={18} className="text-brand" />}
+              <span className="text-sm text-brand-navy/70 flex-1">Connect Google Drive to back up your timers and sync across devices.</span>
+              <span className="text-sm font-semibold text-brand">Connect</span>
+            </button>
+          )}
+          <div className="grid gap-4">
+            {timers.map((t) => (
+              <TimerCard
+                key={t.id}
+                timer={t}
+                origin={t.origin}
+                dirty={t.dirty}
+                showBadge={false}
+                onDuplicate={() => onDuplicate(t.id)}
+                onDelete={() => onDelete(t.id)}
+                confirmingDelete={deleteConfirmId === t.id}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="space-y-8">
