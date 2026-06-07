@@ -11,7 +11,7 @@ export function DisplayPage() {
   const navigate = useNavigate();
   const storage = useStorage();
   const [timer, setTimer] = useState<CompoundTimer | null>(null);
-  const { snapshot, play, pause, reset, skipForward, skipBack } = useTimerEngine(timer);
+  const { snapshot, play, pause, reset, skipForward, skipBack, jumpTo } = useTimerEngine(timer);
 
   useEffect(() => {
     if (!timerId) {
@@ -64,6 +64,8 @@ export function DisplayPage() {
       onPause={pause}
       onSkipForward={skipForward}
       onSkipBack={skipBack}
+      onJump={jumpTo}
+      onReset={reset}
       onBack={handleBack}
     />
   );

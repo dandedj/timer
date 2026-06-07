@@ -13,10 +13,12 @@ interface TimerDisplayProps {
   onPause: () => void;
   onSkipForward: () => void;
   onSkipBack: () => void;
+  onJump: (intervalId: string) => void;
+  onReset: () => void;
   onBack: () => void;
 }
 
-export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipBack, onBack }: TimerDisplayProps) {
+export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipBack, onJump, onReset, onBack }: TimerDisplayProps) {
   const bgColor = snapshot.current?.color ?? '#1a1a2e';
   const isRunning = snapshot.status === 'running';
 
@@ -65,10 +67,11 @@ export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipB
           onPause={onPause}
           onSkipForward={onSkipForward}
           onSkipBack={onSkipBack}
+          onReset={onReset}
         />
       </div>
 
-      <UpcomingPanel upcoming={snapshot.upcoming} />
+      <UpcomingPanel upcoming={snapshot.upcoming} onSelect={onJump} />
     </div>
   );
 }

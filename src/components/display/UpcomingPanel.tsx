@@ -3,6 +3,7 @@ import type { FlatInterval } from '../../types/timer';
 
 interface UpcomingPanelProps {
   upcoming: FlatInterval[];
+  onSelect?: (intervalId: string) => void;
 }
 
 function formatDuration(seconds: number): string {
@@ -15,7 +16,7 @@ function fingerprint(intervals: FlatInterval[]): string {
   return intervals.map(i => i.id).join(',');
 }
 
-export function UpcomingPanel({ upcoming }: UpcomingPanelProps) {
+export function UpcomingPanel({ upcoming, onSelect }: UpcomingPanelProps) {
   const items = upcoming.slice(0, 5);
   const prevFingerprint = useRef('');
   const [animKey, setAnimKey] = useState(0);
@@ -37,9 +38,12 @@ export function UpcomingPanel({ upcoming }: UpcomingPanelProps) {
       </div>
       <div className="flex-1 flex flex-col gap-1.5 min-h-0">
         {items.map((interval, i) => (
-          <div
+          <button
             key={`${animKey}-${i}`}
-            className="flex-1 rounded-lg px-3 py-2 flex flex-col justify-center min-h-0 upcoming-card"
+            type="button"
+            onClick={() => onSelect?.(interval.id)}
+            title="Jump to and start this interval"
+            className="flex-1 rounded-lg px-3 py-2 flex flex-col justify-center min-h-0 upcoming-card text-left w-full transition-transform hover:scale-[1.03] hover:ring-2 hover:ring-white/60 cursor-pointer"
             style={{
               backgroundColor: interval.color,
               opacity: 1 - i * 0.1,
@@ -56,7 +60,7 @@ export function UpcomingPanel({ upcoming }: UpcomingPanelProps) {
                 <span className="text-white/60 text-[10px] uppercase">rest</span>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </div>

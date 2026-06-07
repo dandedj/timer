@@ -48,6 +48,7 @@ export function useTimerEngine(timer: CompoundTimer | null) {
   const reset = useCallback(() => engineRef.current?.reset(), []);
   const skipForward = useCallback(() => engineRef.current?.skipForward(), []);
   const skipBack = useCallback(() => engineRef.current?.skipBack(), []);
+  const jumpTo = useCallback((id: string) => engineRef.current?.jumpTo(id), []);
 
-  return { snapshot, play, pause, reset, skipForward, skipBack };
+  return { snapshot, play, pause, reset, skipForward, skipBack, jumpTo };
 }

@@ -1,4 +1,4 @@
-import { SkipBack, SkipForward, Play, Pause } from 'lucide-react';
+import { SkipBack, SkipForward, Play, Pause, RotateCcw } from 'lucide-react';
 import type { FlatInterval } from '../../types/timer';
 
 interface ExerciseBarProps {
@@ -9,11 +9,20 @@ interface ExerciseBarProps {
   onPause: () => void;
   onSkipForward: () => void;
   onSkipBack: () => void;
+  onReset: () => void;
 }
 
-export function ExerciseBar({ current, next, isRunning, onPlay, onPause, onSkipForward, onSkipBack }: ExerciseBarProps) {
+export function ExerciseBar({ current, next, isRunning, onPlay, onPause, onSkipForward, onSkipBack, onReset }: ExerciseBarProps) {
   return (
     <div className="flex h-20 text-white text-xl font-bold">
+      <button
+        onClick={onReset}
+        className="w-16 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
+        title="Restart from the beginning"
+      >
+        <RotateCcw size={22} />
+      </button>
+
       <button
         onClick={onSkipBack}
         className="w-16 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"

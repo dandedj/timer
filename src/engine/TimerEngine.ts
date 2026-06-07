@@ -123,6 +123,37 @@ export class TimerEngine {
     this.notifyListeners();
   }
 
+  /** Jump to a specific interval (by id) and start running from it. */
+  jumpTo(intervalId: string): void {
+    const idx = this.state.sequence.findIndex((i) => i.id === intervalId);
+    if (idx < 0) return;
+
+    let elapsed = 0;
+    for (let i = 0; i < idx; i++) elapsed += this.state.sequence[i].durationSeconds;
+
+    this.state.currentIndex = idx;
+    this.state.ticksRemaining = Math.max(1, this.state.sequence[idx].durationSeconds * 100);
+    // Elapsed = scheduled position in the workout (sum of prior interval durations),
+    // not measured wall-clock — keeps the elapsed/remaining strip consistent after a jump.
+    this.state.elapsedTotalSeconds = elapsed;
+    this.lastCountdownBeep = -1;
+    this.accumulatedMs = 0;
+
+    this.audio.unlock();
+    const wasRunning = this.state.status === 'running';
+    this.state.status = 'running';
+    if (wasRunning) {
+      // Keep ticking without swallowing a tick (no re-baseline needed mid-run).
+      this.lastWorkerTickMs = performance.now();
+    } else {
+      this.lastWorkerTickMs = 0; // re-baseline on the first tick after (re)start
+      this.worker.postMessage({ cmd: 'start' });
+      this.startRaf();
+    }
+    this.audio.playTransition(this.state.sequence[idx].kind !== 'work');
+    this.notifyListeners();
+  }
+
   subscribe(listener: StateListener): () => void {
     this.listeners.add(listener);
     listener(this.buildSnapshot());
