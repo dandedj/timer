@@ -295,7 +295,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
                       label="Rest after circuit:"
                       value={circuit.restBetweenCircuitsSeconds}
                       onChange={(s) => updateCircuit(i, { ...circuit, restBetweenCircuitsSeconds: s })}
-                      presets={[10, 15, 20, 30]}
+                      presets={[10, 15, 20, 30, 40, 45, 60]}
                     />
                   </div>
                 )}

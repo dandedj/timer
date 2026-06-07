@@ -72,6 +72,18 @@ export class AudioEngine {
     }
   }
 
+  /** Audible cue when the timer is started/resumed (also unlocks audio on the gesture). */
+  playStart(isRest: boolean): void {
+    this.unlock();
+    if (!this.ctx) return;
+    const config = PRESET_CONFIGS[this.settings.preset];
+    const freq = isRest ? config.transition.restFreq : config.transition.workFreq;
+    this.beep(freq, config.transition.duration, config.transition.volume, 0, config.waveform);
+    if (!isRest) {
+      this.beep(freq, config.transition.duration, config.transition.volume, 0.2, config.waveform);
+    }
+  }
+
   playCountdown(secondsRemaining: number): void {
     if (!this.ctx) return;
     if (!this.settings.countdownEnabled) return;

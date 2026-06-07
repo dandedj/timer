@@ -38,6 +38,9 @@ export class TimerEngine {
     if (this.state.status === 'idle' || this.state.status === 'paused') {
       const wasIdle = this.state.status === 'idle';
       this.audio.unlock();
+      // Audible feedback that the timer started/resumed.
+      const current = this.state.sequence[this.state.currentIndex];
+      this.audio.playStart(current ? current.kind !== 'work' : false);
       this.state.status = 'running';
       this.lastWorkerTickMs = 0; // will be set on first tick
       if (wasIdle) {
