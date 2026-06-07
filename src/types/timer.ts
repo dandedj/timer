@@ -29,6 +29,10 @@ export interface CompoundTimer {
   audioSettings?: AudioSettings;
   /** Lead-in warm-up in seconds, played first and counted down on open. */
   warmupSeconds?: number;
+  /** When true, rest between exercises is auto-calculated to fill targetDurationSeconds. */
+  autoRest?: boolean;
+  /** Target total class length in seconds, used by autoRest. */
+  targetDurationSeconds?: number;
   createdAt: string;
   updatedAt: string;
 }

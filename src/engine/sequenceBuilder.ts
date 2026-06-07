@@ -4,9 +4,43 @@ import { REST_COLOR, REST_CIRCUIT_COLOR, WARMUP_COLOR } from './colorPalette';
 
 /** Default lead-in warm-up (10 min) when a timer doesn't specify one. */
 export const DEFAULT_WARMUP_SECONDS = 600;
+/** Default target class length (45 min) used by auto-rest. */
+export const DEFAULT_TARGET_SECONDS = 2700;
 
 export function warmupSecondsFor(timer: CompoundTimer): number {
   return timer.warmupSeconds ?? DEFAULT_WARMUP_SECONDS;
+}
+
+/** Number of rest-between-exercise gaps across the whole timer (matches buildSequence). */
+export function restGapCount(timer: CompoundTimer): number {
+  let gaps = 0;
+  for (const c of timer.circuits) {
+    const work = c.exercises.length * c.sets;
+    if (work > 1) gaps += work - 1;
+  }
+  return gaps;
+}
+
+/** Everything except rest-between-exercises: warm-up + work + rest-after-circuit. */
+export function fixedDurationSeconds(timer: CompoundTimer): number {
+  let total = warmupSecondsFor(timer);
+  for (let ci = 0; ci < timer.circuits.length; ci++) {
+    const c = timer.circuits[ci];
+    const workPerSet = c.exercises.reduce((s, e) => s + e.durationSeconds, 0);
+    total += workPerSet * c.sets;
+    const isLast = ci === timer.circuits.length - 1;
+    if (!isLast) total += c.restBetweenCircuitsSeconds;
+  }
+  return total;
+}
+
+/** The rest-between-exercises (seconds) that makes the total hit the target class length. */
+export function computeAutoRest(timer: CompoundTimer): number {
+  const gaps = restGapCount(timer);
+  if (gaps <= 0) return 0;
+  const target = timer.targetDurationSeconds ?? DEFAULT_TARGET_SECONDS;
+  const r = Math.round((target - fixedDurationSeconds(timer)) / gaps);
+  return Math.max(0, r);
 }
 
 export function buildSequence(timer: CompoundTimer): FlatInterval[] {

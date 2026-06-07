@@ -7,9 +7,10 @@ import { TimelineBar } from './TimelineBar';
 interface TimerPreviewProps {
   timer: CompoundTimer;
   children?: ReactNode;
+  onChange?: (timer: CompoundTimer) => void;
 }
 
-export function TimerPreview({ timer, children }: TimerPreviewProps) {
+export function TimerPreview({ timer, children, onChange }: TimerPreviewProps) {
   const sequence = buildSequence(timer);
   const totalSeconds = sequence.reduce((s, i) => s + i.durationSeconds, 0);
   const minutes = Math.floor(totalSeconds / 60);
@@ -52,7 +53,7 @@ export function TimerPreview({ timer, children }: TimerPreviewProps) {
           </>
         )}
       </div>
-      <TimelineBar timer={timer} />
+      <TimelineBar timer={timer} onChange={onChange} />
     </div>
   );
 }

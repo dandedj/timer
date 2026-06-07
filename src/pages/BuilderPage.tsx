@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { TimerBuilder } from '../components/builder/TimerBuilder';
@@ -6,6 +6,13 @@ import { useTimerLibrary } from '../hooks/useTimerLibrary';
 import { useStorage } from '../storage/storageContext';
 import type { CompoundTimer } from '../types/timer';
 import { colorForIndex } from '../engine/colorPalette';
+
+type SaveStatus = 'idle' | 'saving' | 'saved';
+
+function hasContent(timer: CompoundTimer): boolean {
+  return timer.name.trim() !== '' ||
+    timer.circuits.some((c) => c.exercises.some((e) => e.name.trim() !== ''));
+}
 
 function createEmptyTimer(): CompoundTimer {
   return {
@@ -36,9 +43,13 @@ export function BuilderPage() {
   const storage = useStorage();
   const [timer, setTimer] = useState<CompoundTimer>(() => createEmptyTimer());
   const [loaded, setLoaded] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     setLoaded(false);
+    dirtyRef.current = false;
+    setSaveStatus('idle');
     if (timerId) {
       storage.getTimer(timerId).then((t) => {
         if (t) {
@@ -54,8 +65,24 @@ export function BuilderPage() {
     }
   }, [timerId, storage, navigate]);
 
+  // Mark edits and let the autosave effect persist them.
+  const handleChange = useCallback((t: CompoundTimer) => {
+    dirtyRef.current = true;
+    if (hasContent(t)) setSaveStatus('saving');
+    setTimer(t);
+  }, []);
+
+  // Debounced autosave — persists as you edit, no Save click needed.
+  useEffect(() => {
+    if (!loaded || !dirtyRef.current || !hasContent(timer)) return;
+    const id = setTimeout(() => {
+      saveTimer(timer).then(() => setSaveStatus('saved'));
+    }, 700);
+    return () => clearTimeout(id);
+  }, [timer, loaded, saveTimer]);
+
   const handleSave = async () => {
-    await saveTimer(timer);
+    if (hasContent(timer)) await saveTimer(timer);
     navigate('/library');
   };
 
@@ -74,7 +101,8 @@ export function BuilderPage() {
   return (
     <TimerBuilder
       timer={timer}
-      onChange={setTimer}
+      onChange={handleChange}
+      saveStatus={saveStatus}
       onSave={handleSave}
       onPreview={handlePreview}
       onCheatsheet={handleCheatsheet}

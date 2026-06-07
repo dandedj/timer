@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Play, ClipboardList, GripVertical, ArrowUpDown, Download, Save, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -20,7 +20,7 @@ import { CSS } from '@dnd-kit/utilities';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
 import { DurationPicker } from './DurationPicker';
-import { DEFAULT_WARMUP_SECONDS } from '../../engine/sequenceBuilder';
+import { DEFAULT_WARMUP_SECONDS, computeAutoRest } from '../../engine/sequenceBuilder';
 import { TimerPreview } from './TimerPreview';
 import { SoundSettings, DEFAULT_AUDIO_SETTINGS } from './SoundSettings';
 import { colorForIndex } from '../../engine/colorPalette';
@@ -28,6 +28,7 @@ import { colorForIndex } from '../../engine/colorPalette';
 interface TimerBuilderProps {
   timer: CompoundTimer;
   onChange: (timer: CompoundTimer) => void;
+  saveStatus?: 'idle' | 'saving' | 'saved';
   onSave: () => void;
   onPreview: () => void;
   onCheatsheet: () => void;
@@ -45,6 +46,7 @@ function getExerciseOffsetForCircuit(timer: CompoundTimer, circuitIndex: number)
 function SortableCircuitCard({
   circuit,
   colorOffset,
+  restLocked,
   onChange,
   onDelete,
   onDuplicate,
@@ -52,6 +54,7 @@ function SortableCircuitCard({
 }: {
   circuit: Circuit;
   colorOffset: number;
+  restLocked: boolean;
   onChange: (c: Circuit) => void;
   onDelete: () => void;
   onDuplicate: () => void;
@@ -86,6 +89,7 @@ function SortableCircuitCard({
       <CircuitCard
         circuit={circuit}
         colorOffset={colorOffset}
+        restLocked={restLocked}
         onChange={onChange}
         onDelete={onDelete}
         onDuplicate={onDuplicate}
@@ -106,8 +110,18 @@ function InsertCircuitButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
+export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
   const [rearranging, setRearranging] = useState(false);
+
+  // When auto-rest is on, keep every circuit's rest-between-exercises at the value that
+  // fills the target class length. Recomputes as exercises/circuits/target change.
+  useEffect(() => {
+    if (!timer.autoRest) return;
+    const r = computeAutoRest(timer);
+    if (timer.circuits.some((c) => c.restBetweenExercisesSeconds !== r)) {
+      onChange({ ...timer, circuits: timer.circuits.map((c) => ({ ...c, restBetweenExercisesSeconds: r })) });
+    }
+  }, [timer, onChange]);
 
   const exportTimer = () => {
     const json = JSON.stringify(timer, null, 2);
@@ -192,10 +206,13 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
           className="text-3xl font-extrabold text-brand-navy tracking-tight border-b-2 border-transparent focus:border-brand outline-none pb-1 flex-1 mr-4 bg-transparent placeholder:text-brand-navy/25"
         />
         <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-brand-navy/40 mr-1 whitespace-nowrap min-w-[64px] text-right">
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'All changes saved' : ''}
+          </span>
           <button
             onClick={onCancel}
             className="p-2.5 text-brand-navy/40 hover:text-brand-navy/70 hover:bg-gray-100 rounded-xl transition-colors"
-            title="Cancel"
+            title="Done"
           >
             <X size={22} />
           </button>
@@ -231,7 +248,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
       </div>
 
       <div className="sticky top-0 z-30 mb-6 -mx-6 px-6 pt-2 pb-3 bg-white shadow-sm">
-        <TimerPreview timer={timer}>
+        <TimerPreview timer={timer} onChange={onChange}>
           <SoundSettings
             settings={timer.audioSettings ?? DEFAULT_AUDIO_SETTINGS}
             onChange={(audioSettings) => onChange({ ...timer, audioSettings })}
@@ -239,7 +256,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
         </TimerPreview>
       </div>
 
-      <div className="flex items-center gap-3 mb-8 flex-wrap">
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
         <DurationPicker
           label="Warm-up:"
           value={timer.warmupSeconds ?? DEFAULT_WARMUP_SECONDS}
@@ -247,6 +264,21 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
         />
         <span className="text-xs text-brand-navy/40">Plays first, before the workout. Set to 0:00 for none.</span>
       </div>
+
+      <label className="flex items-center gap-2.5 mb-8 cursor-pointer select-none w-fit">
+        <input
+          type="checkbox"
+          checked={!!timer.autoRest}
+          onChange={(e) => onChange({ ...timer, autoRest: e.target.checked })}
+          className="w-4 h-4 accent-brand rounded"
+        />
+        <span className="text-sm font-medium text-brand-navy/70">
+          Auto-adjust rest between exercises to fill the class length
+        </span>
+        <span className="text-xs text-brand-navy/40">
+          (set the class length in the timeline above)
+        </span>
+      </label>
 
       {/* Rearrange toggle */}
       {timer.circuits.length > 1 && (
@@ -274,6 +306,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
                   key={circuit.id}
                   circuit={circuit}
                   colorOffset={getExerciseOffsetForCircuit(timer, i)}
+                  restLocked={!!timer.autoRest}
                   onChange={(c) => updateCircuit(i, c)}
                   onDelete={() => deleteCircuit(i)}
                   onDuplicate={() => duplicateCircuit(i)}
@@ -295,6 +328,7 @@ export function TimerBuilder({ timer, onChange, onSave, onPreview, onCheatsheet,
                 <CircuitCard
                   circuit={circuit}
                   colorOffset={getExerciseOffsetForCircuit(timer, i)}
+                  restLocked={!!timer.autoRest}
                   onChange={(c) => updateCircuit(i, c)}
                   onDelete={() => deleteCircuit(i)}
                   onDuplicate={() => duplicateCircuit(i)}

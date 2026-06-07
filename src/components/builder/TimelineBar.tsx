@@ -6,6 +6,7 @@ import { buildSequence } from '../../engine/sequenceBuilder';
 
 interface TimelineBarProps {
   timer: CompoundTimer;
+  onChange?: (timer: CompoundTimer) => void;
 }
 
 const CLASS_LENGTHS = [30, 45, 60];
@@ -18,9 +19,31 @@ function formatTime(totalSeconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function TimelineBar({ timer }: TimelineBarProps) {
+function intervalTooltip(interval: FlatInterval, startSeconds: number): string {
+  const kindName =
+    interval.kind === 'warmup' ? 'Warm Up' :
+    interval.kind === 'work' ? interval.label || 'Exercise' :
+    'Rest';
+  const parts = [
+    `${kindName} — ${formatTime(interval.durationSeconds)}`,
+    interval.kind === 'work' ? interval.circuitName : '',
+    interval.totalSets > 1 ? `Set ${interval.setNumber}/${interval.totalSets}` : '',
+    interval.repCount ? `${interval.repCount} reps` : '',
+    `starts at ${formatTime(startSeconds)}`,
+  ].filter(Boolean);
+  return parts.join('  ·  ');
+}
+
+export function TimelineBar({ timer, onChange }: TimelineBarProps) {
   const [expanded, setExpanded] = useState(false);
-  const [targetMinutes, setTargetMinutes] = useState(45);
+  const [localTargetMinutes, setLocalTargetMinutes] = useState(45);
+  const targetMinutes = timer.targetDurationSeconds != null
+    ? Math.round(timer.targetDurationSeconds / 60)
+    : localTargetMinutes;
+  const setTargetMinutes = (m: number) => {
+    if (onChange) onChange({ ...timer, targetDurationSeconds: Math.max(60, m * 60) });
+    else setLocalTargetMinutes(m);
+  };
 
   // The warm-up is a real timer interval (part of the sequence/total below), so it is
   // counted directly against the class target — no separate pre-timer placeholder.
@@ -112,9 +135,11 @@ export function TimelineBar({ timer }: TimelineBarProps) {
           {sequence.map((interval, idx) => {
             const widthPct = (interval.durationSeconds / targetSeconds) * 100;
             const isRest = interval.kind !== 'work';
+            const startSeconds = (cumulativeTimes[idx] ?? interval.durationSeconds) - interval.durationSeconds;
             return (
               <div
                 key={interval.id + '-' + idx}
+                title={intervalTooltip(interval, startSeconds)}
                 className="h-full transition-opacity group-hover:opacity-90"
                 style={{
                   width: `${widthPct}%`,

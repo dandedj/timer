@@ -7,12 +7,13 @@ import { DurationPicker } from './DurationPicker';
 interface CircuitCardProps {
   circuit: Circuit;
   colorOffset?: number;
+  restLocked?: boolean;
   onChange: (circuit: Circuit) => void;
   onDelete: () => void;
   onDuplicate: () => void;
 }
 
-export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDuplicate }: CircuitCardProps) {
+export function CircuitCard({ circuit, colorOffset = 0, restLocked = false, onChange, onDelete, onDuplicate }: CircuitCardProps) {
   const [expanded, setExpanded] = useState(true);
 
   const totalDuration = circuit.exercises.reduce((sum, e) => {
@@ -88,12 +89,21 @@ export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDu
                   />
                 </div>
 
-                <DurationPicker
-                  label="Rest between exercises:"
-                  value={circuit.restBetweenExercisesSeconds}
-                  onChange={(s) => onChange({ ...circuit, restBetweenExercisesSeconds: s })}
-                  presets={[10, 15, 20, 30]}
-                />
+                {restLocked ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-brand-navy/50 font-medium">Rest between exercises:</span>
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand/10 text-brand" title="Auto-calculated to fill the class length">
+                      Auto · {circuit.restBetweenExercisesSeconds}s
+                    </span>
+                  </div>
+                ) : (
+                  <DurationPicker
+                    label="Rest between exercises:"
+                    value={circuit.restBetweenExercisesSeconds}
+                    onChange={(s) => onChange({ ...circuit, restBetweenExercisesSeconds: s })}
+                    presets={[10, 15, 20, 30]}
+                  />
+                )}
               </div>
 
               <ExerciseList
