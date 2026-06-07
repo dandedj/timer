@@ -44,75 +44,51 @@ function looksLikeTimerJson(text: string): boolean {
   return t.startsWith('{') || t.startsWith('[');
 }
 
-// CORS proxies tried in order. Hosts like intervaltimer.com don't send CORS headers,
-// and any single public proxy is unreliable, so we fall through a chain until one
-// returns usable JSON. Swap the first entry for a self-hosted proxy for full reliability.
-const PROXIES: Array<{ url: (u: string) => string; decode: (body: string) => string }> = [
-  {
-    url: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
-    decode: (body) => body,
-  },
-  {
-    url: (u) => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u),
-    decode: (body) => {
-      const wrap = JSON.parse(body) as { contents?: string; status?: { http_code?: number } };
-      const code = wrap.status?.http_code;
-      if (code && code >= 400) throw new Error(`http ${code}`);
-      return decodeContents(wrap.contents || '');
-    },
-  },
-  {
-    url: (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u),
-    decode: (body) => body,
-  },
-  {
-    url: (u) => 'https://thingproxy.freeboard.io/fetch/' + u,
-    decode: (body) => body,
-  },
+function decodeAllOriginsGet(body: string): string {
+  const wrap = JSON.parse(body) as { contents?: string; status?: { http_code?: number } };
+  const code = wrap.status?.http_code;
+  if (code && code >= 400) throw new Error(`http ${code}`);
+  return decodeContents(wrap.contents || '');
+}
+
+// Ways to read a no-CORS URL from the browser. Hosts like intervaltimer.com send no
+// CORS header, and any single public proxy is individually unreliable — so we RACE
+// them all in parallel and take the first that returns usable JSON. (For full
+// reliability, point the first entry at a self-hosted Cloudflare Worker.)
+const SOURCES: Array<{ url: (u: string) => string; decode: (body: string) => string }> = [
+  { url: (u) => u, decode: (b) => b }, // direct — works for CORS-enabled hosts (raw GitHub, Dropbox ?dl=1)
+  { url: (u) => 'https://api.cors.lol/?url=' + encodeURIComponent(u), decode: (b) => b },
+  { url: (u) => 'https://api.allorigins.win/get?url=' + encodeURIComponent(u), decode: decodeAllOriginsGet },
+  { url: (u) => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u), decode: (b) => b },
+  { url: (u) => 'https://corsproxy.io/?url=' + encodeURIComponent(u), decode: (b) => b },
+  { url: (u) => 'https://thingproxy.freeboard.io/fetch/' + u, decode: (b) => b },
 ];
 
-async function fetchWithTimeout(url: string, ms = 12000): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
-  try {
-    return await fetch(url, { signal: controller.signal });
-  } finally {
-    clearTimeout(timer);
-  }
+async function attempt(fetchUrl: string, decode: (b: string) => string, signal: AbortSignal): Promise<string> {
+  const res = await fetch(fetchUrl, { signal });
+  if (!res.ok) throw new Error(`status ${res.status}`);
+  const text = decode(await res.text());
+  if (!looksLikeTimerJson(text)) throw new Error('not timer json');
+  return text;
 }
 
 /**
- * Fetch timer file text from a URL. Tries a direct request first (works for
- * CORS-enabled hosts like raw GitHub, gists, or Dropbox `?dl=1`), then falls through
- * a chain of CORS proxies for hosts that don't allow cross-origin reads.
+ * Fetch timer file text from a URL. Races a direct request and several CORS proxies
+ * in parallel; the first that returns valid timer JSON wins (latency = fastest source,
+ * and it only fails if ALL of them are down at once).
  */
 export async function fetchTimerText(rawInput: string): Promise<string> {
   const url = deriveDownloadUrl(rawInput);
-
-  // 1. Direct — succeeds for CORS-enabled hosts, no proxy needed.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
-    const direct = await fetchWithTimeout(url);
-    if (direct.ok) {
-      const text = await direct.text();
-      if (looksLikeTimerJson(text)) return text;
-    }
+    return await Promise.any(SOURCES.map((s) => attempt(s.url(url), s.decode, controller.signal)));
   } catch {
-    // CORS or network failure — fall through to the proxies.
+    throw new Error(
+      'could not be fetched — the timer site blocked the request. Try again, or open the link and import the downloaded .seconds file.'
+    );
+  } finally {
+    clearTimeout(timeout);
+    controller.abort(); // cancel any stragglers
   }
-
-  // 2. Proxy chain — first one to return usable JSON wins.
-  for (const proxy of PROXIES) {
-    try {
-      const res = await fetchWithTimeout(proxy.url(url));
-      if (!res.ok) continue;
-      const decoded = proxy.decode(await res.text());
-      if (looksLikeTimerJson(decoded)) return decoded;
-    } catch {
-      // try the next proxy
-    }
-  }
-
-  throw new Error(
-    'could not be fetched — the timer site blocked the request. Try again, or open the link and import the downloaded .seconds file.'
-  );
 }
