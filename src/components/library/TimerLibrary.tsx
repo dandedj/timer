@@ -290,44 +290,52 @@ export function TimerLibrary(props: TimerLibraryProps) {
                 onSyncNow={onSyncNow}
               />
             </div>
-            {!isConnected && authStatus !== 'restoring' ? (
-              <div className="bg-brand/5 border border-brand/15 rounded-xl px-5 py-4 flex items-center gap-3">
-                <Cloud size={22} className="text-brand shrink-0" />
-                <p className="text-sm text-brand-navy/70 flex-1">
-                  Connect Google Drive to back up your timers and use them on any device.
-                </p>
-                <button
-                  onClick={onConnect}
-                  disabled={connecting}
-                  className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition-colors disabled:opacity-50"
-                >
-                  {connecting ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
-                  Connect
-                </button>
-              </div>
-            ) : authStatus === 'restoring' && driveTimers.length === 0 ? (
+            {authStatus === 'restoring' && driveTimers.length === 0 ? (
               <div className="grid gap-4">
                 <SkeletonCard />
                 <SkeletonCard />
               </div>
-            ) : driveTimers.length === 0 ? (
-              <p className="text-sm text-brand-navy/40 bg-gray-50 rounded-xl px-4 py-3">
-                No timers in Drive yet. Use “Save to Drive” on a device timer, or create one while connected.
-              </p>
             ) : (
-              <div className="grid gap-4">
-                {driveTimers.map((t) => (
-                  <TimerCard
-                    key={t.id}
-                    timer={t}
-                    origin={t.origin}
-                    dirty={t.dirty}
-                    isConnected={isConnected}
-                    onDuplicate={() => onDuplicate(t.id)}
-                    onDelete={() => onDelete(t.id)}
-                    confirmingDelete={deleteConfirmId === t.id}
-                  />
-                ))}
+              <div className="space-y-4">
+                {/* Cached Drive timers stay visible even when disconnected (offline-first). */}
+                {!isConnected && authStatus !== 'restoring' && (
+                  <div className="bg-brand/5 border border-brand/15 rounded-xl px-5 py-4 flex items-center gap-3">
+                    <Cloud size={22} className="text-brand shrink-0" />
+                    <p className="text-sm text-brand-navy/70 flex-1">
+                      {driveTimers.length > 0
+                        ? 'Reconnect Google Drive to keep these backed up and synced across devices.'
+                        : 'Connect Google Drive to back up your timers and use them on any device.'}
+                    </p>
+                    <button
+                      onClick={onConnect}
+                      disabled={connecting}
+                      className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark transition-colors disabled:opacity-50"
+                    >
+                      {connecting ? <Loader2 size={16} className="animate-spin" /> : <Cloud size={16} />}
+                      {driveTimers.length > 0 ? 'Reconnect' : 'Connect'}
+                    </button>
+                  </div>
+                )}
+                {driveTimers.length > 0 ? (
+                  <div className="grid gap-4">
+                    {driveTimers.map((t) => (
+                      <TimerCard
+                        key={t.id}
+                        timer={t}
+                        origin={t.origin}
+                        dirty={t.dirty}
+                        isConnected={isConnected}
+                        onDuplicate={() => onDuplicate(t.id)}
+                        onDelete={() => onDelete(t.id)}
+                        confirmingDelete={deleteConfirmId === t.id}
+                      />
+                    ))}
+                  </div>
+                ) : isConnected ? (
+                  <p className="text-sm text-brand-navy/40 bg-gray-50 rounded-xl px-4 py-3">
+                    No timers in Drive yet. Use “Save to Drive” on a device timer, or create one while connected.
+                  </p>
+                ) : null}
               </div>
             )}
           </section>

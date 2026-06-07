@@ -23,16 +23,16 @@ export function ConnectionMenu() {
   const [confirming, setConfirming] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  const close = () => { setOpen(false); setConfirming(false); };
+
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-        setConfirming(false);
-      }
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
     };
-    document.addEventListener('mousedown', onClick);
-    return () => document.removeEventListener('mousedown', onClick);
-  }, []);
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
 
   // Not connected — a single clear call to action.
   if (!isConnected) {
@@ -97,41 +97,42 @@ export function ConnectionMenu() {
             </p>
           </div>
 
-          <button
-            onMouseDown={() => { syncNow(); }}
-            className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50"
-          >
-            <RefreshCw size={15} className="text-brand" /> Sync now
-          </button>
-
           {!confirming ? (
-            <button
-              onMouseDown={(e) => { e.preventDefault(); setConfirming(true); }}
-              className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50"
-            >
-              <LogOut size={15} className="text-brand-navy/50" /> Disconnect
-            </button>
+            <>
+              <button
+                onClick={() => { syncNow(); close(); }}
+                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+              >
+                <RefreshCw size={15} className="text-brand" /> Sync now
+              </button>
+              <button
+                onClick={() => setConfirming(true)}
+                className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+              >
+                <LogOut size={15} className="text-brand-navy/50" /> Disconnect
+              </button>
+            </>
           ) : (
-            <div className="px-4 py-2.5 border-t border-gray-100">
+            <div className="px-4 py-2.5">
               <p className="text-xs text-brand-navy/60 mb-2">
                 Disconnect Drive? Your timers stay on this device — they just won't sync until you reconnect.
               </p>
               <div className="flex gap-2">
                 <button
-                  onMouseDown={() => { disconnect(false); setOpen(false); setConfirming(false); }}
+                  onClick={() => { disconnect(false); close(); }}
                   className="flex-1 px-3 py-1.5 bg-brand-navy text-white rounded-lg text-sm font-medium hover:bg-brand-navy/90"
                 >
                   Disconnect
                 </button>
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); setConfirming(false); }}
+                  onClick={() => setConfirming(false)}
                   className="px-3 py-1.5 text-sm text-brand-navy/60 hover:text-brand-navy"
                 >
                   Cancel
                 </button>
               </div>
               <button
-                onMouseDown={() => { disconnect(true); setOpen(false); setConfirming(false); }}
+                onClick={() => { disconnect(true); close(); }}
                 className="text-xs text-red-500 hover:text-red-600 mt-2.5"
               >
                 Sign out &amp; remove access from this app

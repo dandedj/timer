@@ -100,22 +100,31 @@ export class GoogleAuthProvider implements IAuthProvider {
     });
   }
 
-  /** Silently refresh the access token (no popup). Returns true on success. */
+  /** Silently refresh the access token (no popup). Returns true on success.
+   *  Resolves false after a timeout so a hung GIS callback can never block sync. */
   async refreshToken(): Promise<boolean> {
     if (typeof google === 'undefined' || !google.accounts?.oauth2) {
       return false;
     }
     return new Promise<boolean>((resolve) => {
+      let settled = false;
+      const finish = (ok: boolean) => {
+        if (settled) return;
+        settled = true;
+        resolve(ok);
+      };
+      const timer = setTimeout(() => finish(false), 10000);
       this.initClient(
         (response) => {
+          clearTimeout(timer);
           if (response.error) {
-            resolve(false);
+            finish(false);
             return;
           }
           this.persistToken(response.access_token, response.expires_in);
-          resolve(true);
+          finish(true);
         },
-        () => resolve(false),
+        () => { clearTimeout(timer); finish(false); },
       );
       this.tokenClient!.requestAccessToken({ prompt: '' });
     });

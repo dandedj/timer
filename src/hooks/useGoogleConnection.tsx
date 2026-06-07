@@ -127,13 +127,18 @@ export function GoogleConnectionProvider({ children }: { children: ReactNode }) 
 
   const disconnect = useCallback(async (revoke = false) => {
     if (!auth) return;
-    // Flush anything pending before going offline so nothing is lost.
-    await storage.sync().catch(() => {});
-    await auth.signOut(revoke);
+    // Disconnect must be instant and reliable — never block on the network. Edits are
+    // already pushed write-through on save, so there is nothing to flush here. Update
+    // the UI immediately, then sign out (best-effort).
     storage.setDrive(null);
     setUser(null);
     setAuthStatus('local');
     setSyncStatus('idle');
+    try {
+      await auth.signOut(revoke);
+    } catch (err) {
+      console.error('Sign-out error:', err);
+    }
   }, [auth, storage]);
 
   const syncNow = useCallback(() => storage.sync(), [storage]);
