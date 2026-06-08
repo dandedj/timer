@@ -6,6 +6,7 @@ import { SetIndicator } from './SetIndicator';
 import { RepDisplay } from './RepDisplay';
 import { UpcomingPanel } from './UpcomingPanel';
 import { PlaybackTimeline } from './PlaybackTimeline';
+import { VolumeControl } from './VolumeControl';
 import type { EngineSnapshot } from '../../types/engine';
 
 interface TimerDisplayProps {
@@ -16,10 +17,12 @@ interface TimerDisplayProps {
   onSkipBack: () => void;
   onJump: (intervalId: string) => void;
   onReset: () => void;
+  onVolumeChange: (volume: number) => void;
+  onVolumePreview: () => void;
   onBack: () => void;
 }
 
-export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipBack, onJump, onReset, onBack }: TimerDisplayProps) {
+export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipBack, onJump, onReset, onVolumeChange, onVolumePreview, onBack }: TimerDisplayProps) {
   const bgColor = snapshot.current?.color ?? '#1a1a2e';
   const isRunning = snapshot.status === 'running';
 
@@ -37,11 +40,14 @@ export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipB
             <ArrowLeft size={16} />
             Timers
           </button>
-          <SetIndicator
-            setNumber={snapshot.setNumber}
-            totalSets={snapshot.totalSets}
-            circuitName={snapshot.current?.circuitName ?? ''}
-          />
+          <div className="flex items-center gap-3">
+            <VolumeControl onChange={onVolumeChange} onPreview={onVolumePreview} />
+            <SetIndicator
+              setNumber={snapshot.setNumber}
+              totalSets={snapshot.totalSets}
+              circuitName={snapshot.current?.circuitName ?? ''}
+            />
+          </div>
         </div>
 
         <div className="flex-1 flex items-center justify-center">

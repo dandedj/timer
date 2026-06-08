@@ -1,4 +1,5 @@
 import type { SoundPreset, AudioSettings } from '../types/timer';
+import { getVolume } from './volume';
 
 export const DEFAULT_AUDIO_SETTINGS: AudioSettings = {
   preset: 'classic',
@@ -14,43 +15,52 @@ interface PresetConfig {
   finish: { notes: [number, number, number]; volume: number; duration: number };
 }
 
+// Beeps are intentionally loud and long so they carry across a noisy class.
+// A user-adjustable master volume (0–1) scales all of these down as needed.
 const PRESET_CONFIGS: Record<SoundPreset, PresetConfig> = {
   classic: {
     waveform: 'sine',
-    transition: { workFreq: 880, restFreq: 440, volume: 0.15, duration: 0.3 },
-    countdown: { freq: 660, volume: 0.1, duration: 0.1 },
-    finish: { notes: [523, 659, 784], volume: 0.25, duration: 0.3 },
+    transition: { workFreq: 880, restFreq: 440, volume: 0.5, duration: 0.6 },
+    countdown: { freq: 660, volume: 0.32, duration: 0.22 },
+    finish: { notes: [523, 659, 784], volume: 0.5, duration: 0.6 },
   },
   soft: {
     waveform: 'sine',
-    transition: { workFreq: 600, restFreq: 330, volume: 0.08, duration: 0.4 },
-    countdown: { freq: 500, volume: 0.05, duration: 0.15 },
-    finish: { notes: [440, 554, 659], volume: 0.12, duration: 0.4 },
+    transition: { workFreq: 600, restFreq: 330, volume: 0.3, duration: 0.6 },
+    countdown: { freq: 500, volume: 0.2, duration: 0.25 },
+    finish: { notes: [440, 554, 659], volume: 0.32, duration: 0.6 },
   },
   sharp: {
     waveform: 'square',
-    transition: { workFreq: 1000, restFreq: 500, volume: 0.06, duration: 0.15 },
-    countdown: { freq: 800, volume: 0.04, duration: 0.06 },
-    finish: { notes: [587, 740, 880], volume: 0.08, duration: 0.2 },
+    transition: { workFreq: 1000, restFreq: 500, volume: 0.28, duration: 0.35 },
+    countdown: { freq: 800, volume: 0.18, duration: 0.16 },
+    finish: { notes: [587, 740, 880], volume: 0.3, duration: 0.4 },
   },
   bell: {
     waveform: 'triangle',
-    transition: { workFreq: 1200, restFreq: 600, volume: 0.12, duration: 0.5 },
-    countdown: { freq: 900, volume: 0.08, duration: 0.2 },
-    finish: { notes: [523, 698, 880], volume: 0.18, duration: 0.5 },
+    transition: { workFreq: 1200, restFreq: 600, volume: 0.42, duration: 0.8 },
+    countdown: { freq: 900, volume: 0.28, duration: 0.35 },
+    finish: { notes: [523, 698, 880], volume: 0.45, duration: 0.8 },
   },
 };
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private settings: AudioSettings;
+  private masterVolume: number;
 
   constructor(settings?: AudioSettings) {
     this.settings = settings ?? DEFAULT_AUDIO_SETTINGS;
+    this.masterVolume = getVolume();
   }
 
   updateSettings(settings: AudioSettings): void {
     this.settings = settings;
+  }
+
+  /** Set the master volume (0–1). Applied to every subsequent beep. */
+  setMasterVolume(volume: number): void {
+    this.masterVolume = Math.min(1, Math.max(0, volume));
   }
 
   unlock(): void {
@@ -117,6 +127,9 @@ export class AudioEngine {
     waveform: OscType = 'sine'
   ): void {
     if (!this.ctx) return;
+    const level = volume * this.masterVolume;
+    if (level <= 0.001) return; // muted / inaudible
+
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
@@ -127,7 +140,7 @@ export class AudioEngine {
     osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
 
     const startTime = this.ctx.currentTime + delaySeconds;
-    gain.gain.setValueAtTime(volume, startTime);
+    gain.gain.setValueAtTime(level, startTime);
     gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
     osc.start(startTime);

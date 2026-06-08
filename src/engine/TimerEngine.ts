@@ -164,6 +164,15 @@ export class TimerEngine {
     this.audio.updateSettings(settings);
   }
 
+  setVolume(volume: number): void {
+    this.audio.setMasterVolume(volume);
+  }
+
+  /** Play a short sample tone (used as feedback while adjusting the volume). */
+  previewBeep(): void {
+    this.audio.playPreview();
+  }
+
   destroy(): void {
     this.stop();
     this.worker.terminate();
