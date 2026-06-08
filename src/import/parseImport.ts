@@ -30,7 +30,7 @@ function isSecondsProShape(o: unknown): boolean {
 
 function parseAudioSettings(raw: unknown): AudioSettings | undefined {
   if (!isRecord(raw)) return undefined;
-  const presets = ['classic', 'soft', 'sharp', 'bell'];
+  const presets = ['classic', 'soft', 'sharp', 'bell', 'strong', 'horn', 'whistle', 'gong'];
   const preset = typeof raw.preset === 'string' && presets.includes(raw.preset) ? raw.preset : 'classic';
   return {
     preset: preset as AudioSettings['preset'],

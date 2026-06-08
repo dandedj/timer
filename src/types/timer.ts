@@ -15,7 +15,7 @@ export interface Circuit {
   restBetweenCircuitsSeconds: number;
 }
 
-export type SoundPreset = 'classic' | 'soft' | 'sharp' | 'bell';
+export type SoundPreset = 'classic' | 'soft' | 'sharp' | 'bell' | 'strong' | 'horn' | 'whistle' | 'gong';
 
 export interface AudioSettings {
   preset: SoundPreset;

@@ -12,6 +12,10 @@ const PRESETS: { value: SoundPreset; label: string }[] = [
   { value: 'soft', label: 'Soft' },
   { value: 'sharp', label: 'Sharp' },
   { value: 'bell', label: 'Bell' },
+  { value: 'strong', label: 'Strong' },
+  { value: 'horn', label: 'Horn' },
+  { value: 'whistle', label: 'Whistle' },
+  { value: 'gong', label: 'Gong' },
 ];
 
 export function SoundSettings({ settings, onChange }: SoundSettingsProps) {
@@ -36,8 +40,8 @@ export function SoundSettings({ settings, onChange }: SoundSettingsProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex gap-1">
+    <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex gap-1 flex-wrap">
         {PRESETS.map(p => (
           <button
             key={p.value}

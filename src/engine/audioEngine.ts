@@ -42,6 +42,34 @@ const PRESET_CONFIGS: Record<SoundPreset, PresetConfig> = {
     countdown: { freq: 900, volume: 0.28, duration: 0.35 },
     finish: { notes: [523, 698, 880], volume: 0.45, duration: 0.8 },
   },
+  // The loudest, most attention-grabbing option (harsh sawtooth, high gain).
+  strong: {
+    waveform: 'sawtooth',
+    transition: { workFreq: 784, restFreq: 392, volume: 0.7, duration: 0.7 },
+    countdown: { freq: 660, volume: 0.5, duration: 0.28 },
+    finish: { notes: [523, 659, 784], volume: 0.75, duration: 0.85 },
+  },
+  // Low, blaring air-horn style — carries through music and chatter.
+  horn: {
+    waveform: 'sawtooth',
+    transition: { workFreq: 330, restFreq: 247, volume: 0.62, duration: 0.95 },
+    countdown: { freq: 392, volume: 0.42, duration: 0.3 },
+    finish: { notes: [330, 392, 494], volume: 0.62, duration: 1.1 },
+  },
+  // Piercing coach-whistle (high square tone).
+  whistle: {
+    waveform: 'square',
+    transition: { workFreq: 1800, restFreq: 1500, volume: 0.32, duration: 0.4 },
+    countdown: { freq: 2100, volume: 0.24, duration: 0.14 },
+    finish: { notes: [1800, 2100, 2400], volume: 0.34, duration: 0.45 },
+  },
+  // Deep boxing-bell / gong for round changes.
+  gong: {
+    waveform: 'triangle',
+    transition: { workFreq: 196, restFreq: 147, volume: 0.6, duration: 1.1 },
+    countdown: { freq: 330, volume: 0.34, duration: 0.32 },
+    finish: { notes: [196, 261, 330], volume: 0.62, duration: 1.3 },
+  },
 };
 
 export class AudioEngine {
