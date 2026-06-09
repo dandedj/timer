@@ -85,6 +85,13 @@ function hardenNative(raw: Record<string, unknown>): CompoundTimer {
     name,
     circuits,
     audioSettings: parseAudioSettings(raw.audioSettings),
+    // Preserve timer-level settings when present; omitted fields fall back to defaults.
+    warmupSeconds: typeof raw.warmupSeconds === 'number' ? nonNegInt(raw.warmupSeconds, 0) : undefined,
+    autoRest: typeof raw.autoRest === 'boolean' ? raw.autoRest : undefined,
+    targetDurationSeconds:
+      typeof raw.targetDurationSeconds === 'number' && raw.targetDurationSeconds > 0
+        ? Math.round(raw.targetDurationSeconds)
+        : undefined,
     createdAt: now,
     updatedAt: now,
   };
