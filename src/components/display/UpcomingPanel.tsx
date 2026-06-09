@@ -42,7 +42,7 @@ export function UpcomingPanel({ upcoming, onSelect }: UpcomingPanelProps) {
             key={`${animKey}-${i}`}
             type="button"
             onClick={() => onSelect?.(interval.id)}
-            title="Jump to and start this interval"
+            title="Jump to this interval"
             className="flex-1 rounded-lg px-3 py-2 flex flex-col justify-center min-h-0 upcoming-card text-left w-full transition-transform hover:scale-[1.03] hover:ring-2 hover:ring-white/60 cursor-pointer"
             style={{
               backgroundColor: interval.color,

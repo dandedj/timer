@@ -72,10 +72,22 @@ const PRESET_CONFIGS: Record<SoundPreset, PresetConfig> = {
   },
 };
 
+type PendingBeep = [number, number, number, number, OscType];
+/** Beeps issued within this window belong to one cue (e.g. a double work beep). */
+const PENDING_BATCH_MS = 250;
+/** A held cue older than this is stale — playing it late would only confuse. */
+const PENDING_MAX_AGE_MS = 2000;
+
 export class AudioEngine {
   private ctx: AudioContext | null = null;
   private settings: AudioSettings;
   private masterVolume: number;
+  private handleVisibilityChange: (() => void) | null = null;
+  // resume() is async, so a cue fired in the same synchronous chain that unlocks or
+  // resumes the context (first Play tap, post-sleep catch-up) would be lost if simply
+  // skipped. Hold the most recent cue and flush it the moment the context runs.
+  private pendingBeeps: PendingBeep[] = [];
+  private pendingSince = 0;
 
   constructor(settings?: AudioSettings) {
     this.settings = settings ?? DEFAULT_AUDIO_SETTINGS;
@@ -94,10 +106,56 @@ export class AudioEngine {
   unlock(): void {
     if (!this.ctx) {
       this.ctx = new AudioContext();
+      // iOS Safari moves the context to 'interrupted' (calls, screen lock) and may
+      // not recover on its own — resume on any unexpected state change, and play
+      // any cue that was held while the context wasn't running.
+      this.ctx.onstatechange = () => {
+        if (this.ctx?.state === 'running') this.flushPendingBeeps();
+        else this.tryResume();
+      };
+      if (typeof document !== 'undefined') {
+        this.handleVisibilityChange = () => {
+          if (document.visibilityState === 'visible') this.tryResume();
+        };
+        document.addEventListener('visibilitychange', this.handleVisibilityChange);
+      }
     }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
+    // iOS Safari reports 'interrupted', not just 'suspended'.
+    this.tryResume();
+  }
+
+  /** Tear down the context and listeners. Called by TimerEngine.destroy(). */
+  dispose(): void {
+    if (this.handleVisibilityChange && typeof document !== 'undefined') {
+      document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     }
+    this.handleVisibilityChange = null;
+    this.pendingBeeps = [];
+    if (this.ctx) {
+      this.ctx.onstatechange = null;
+      this.ctx.close().catch(() => {});
+      this.ctx = null;
+    }
+  }
+
+  /** Best-effort resume; rejection (e.g. autoplay policy) is non-fatal. */
+  private tryResume(): void {
+    if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') {
+      this.ctx
+        .resume()
+        .then(() => this.flushPendingBeeps())
+        .catch(() => {});
+    }
+  }
+
+  /** Play the cue that was held while the context wasn't running, unless stale. */
+  private flushPendingBeeps(): void {
+    if (this.pendingBeeps.length === 0) return;
+    const held = this.pendingBeeps;
+    this.pendingBeeps = [];
+    if (Date.now() - this.pendingSince > PENDING_MAX_AGE_MS) return;
+    if (!this.ctx || this.ctx.state !== 'running') return;
+    for (const params of held) this.beep(...params);
   }
 
   playTransition(isRest: boolean): void {
@@ -155,6 +213,18 @@ export class AudioEngine {
     waveform: OscType = 'sine'
   ): void {
     if (!this.ctx) return;
+    if (this.ctx.state !== 'running') {
+      // currentTime is frozen while suspended/interrupted; scheduling now would
+      // queue stale oscillators that all fire at once on resume. Hold only the
+      // latest cue (a fresh batch replaces an older one) and flush it on resume,
+      // so the first start beep and the post-sleep catch-up cue aren't lost.
+      const nowMs = Date.now();
+      if (nowMs - this.pendingSince > PENDING_BATCH_MS) this.pendingBeeps = [];
+      this.pendingSince = nowMs;
+      this.pendingBeeps.push([frequency, duration, volume, delaySeconds, waveform]);
+      this.tryResume();
+      return;
+    }
     const level = volume * this.masterVolume;
     if (level <= 0.001) return; // muted / inaudible
 

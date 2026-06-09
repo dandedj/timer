@@ -6,6 +6,9 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const APP_NAME = 'interval-timer';
 const MIME_TYPE = 'application/json';
 const DOWNLOAD_CONCURRENCY = 8;
+// Fail fast on a black-holed connection (e.g. captive-portal gym wifi) so callers can
+// drop into the offline path instead of hanging a fetch indefinitely.
+const REQUEST_TIMEOUT_MS = 15000;
 
 /** A timer fetched from Drive, paired with its (device-local) Drive file id. */
 export interface DriveTimer {
@@ -42,6 +45,7 @@ export class GoogleDriveStorageProvider {
   private async request(url: string, init?: RequestInit): Promise<Response> {
     const res = await fetch(url, {
       ...init,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         Authorization: `Bearer ${this.token()}`,
         ...init?.headers,
@@ -136,12 +140,17 @@ export class GoogleDriveStorageProvider {
 
   /** Overwrite an existing Drive file's name + content. */
   async update(driveFileId: string, timer: CompoundTimer): Promise<void> {
-    const renameRes = await this.request(`${DRIVE_API}/files/${driveFileId}`, {
+    const renameRes = await this.request(`${DRIVE_API}/files/${driveFileId}?fields=trashed`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: `${timer.name || 'timer'}.timer.json` }),
     });
     if (!renameRes.ok) throw new Error(`Drive rename failed: ${renameRes.status}`);
+    // Drive happily updates a trashed file (it is only hidden from listings). Treat
+    // that like a 404 so the push fails, the edit stays dirty, and the next sync
+    // recreates the timer as a fresh file instead of writing it into the trash.
+    const renamed = (await renameRes.json()) as { trashed?: boolean };
+    if (renamed.trashed) throw new Error('Drive update failed: file is trashed');
 
     const res = await this.request(
       `${UPLOAD_API}/files/${driveFileId}?uploadType=media`,
@@ -155,8 +164,14 @@ export class GoogleDriveStorageProvider {
     if (!res.ok) throw new Error(`Drive update failed: ${res.status}`);
   }
 
+  /** Move a timer's file to Drive's trash (recoverable for ~30 days) rather than
+   *  deleting it permanently, so an accidental delete is never irreversible. */
   async remove(driveFileId: string): Promise<void> {
-    const res = await this.request(`${DRIVE_API}/files/${driveFileId}`, { method: 'DELETE' });
+    const res = await this.request(`${DRIVE_API}/files/${driveFileId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trashed: true }),
+    });
     // 404 is fine — already gone.
     if (!res.ok && res.status !== 404) {
       throw new Error(`Drive delete failed: ${res.status}`);

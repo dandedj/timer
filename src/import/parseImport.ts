@@ -97,11 +97,44 @@ function hardenNative(raw: Record<string, unknown>): CompoundTimer {
   };
 }
 
+export interface ParsedImport {
+  timer: CompoundTimer;
+  warnings: string[];
+}
+
+/** One entry of a multi-timer file that failed to parse; the others still import. */
+export interface FailedImport {
+  /** Best-effort name from the raw entry, for its row in the import results. */
+  name: string;
+  error: string;
+}
+
+export type ImportEntry = ParsedImport | FailedImport;
+
+export function isFailedImport(entry: ImportEntry): entry is FailedImport {
+  return 'error' in entry;
+}
+
+function parseEntry(raw: unknown): ParsedImport {
+  // Native first — it is this app's own format, so it wins any ambiguity.
+  if (isNativeShape(raw)) {
+    return { timer: hardenNative(raw as Record<string, unknown>), warnings: [] };
+  }
+  if (isSecondsProShape(raw)) {
+    return parseSecondsProFile(JSON.stringify(raw));
+  }
+  throw new Error('is not a recognized timer file (expected a .timer export, or a Seconds / Seconds Pro / intervaltimer file).');
+}
+
 /**
- * Parse one imported file's text into a CompoundTimer, auto-detecting the format
- * (native `.timer` JSON or a Seconds Pro export). Throws a clear, user-facing error.
+ * Parse one imported file's text into every timer it contains, auto-detecting
+ * the format of each entry (native `.timer` JSON or a Seconds Pro export).
+ * Each result carries that timer's import-approximation warnings (empty when
+ * the conversion was exact). In a multi-timer file a bad entry becomes a
+ * FailedImport while the rest still parse. Throws a clear, user-facing error
+ * only for whole-file problems (invalid JSON, nothing recognizable).
  */
-export function parseImport(text: string): CompoundTimer {
+export function parseImportAll(text: string): ImportEntry[] {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -109,17 +142,31 @@ export function parseImport(text: string): CompoundTimer {
     throw new Error('is not valid JSON.');
   }
 
-  // Some exports wrap one or more timers in an array — use the first usable one.
+  // Some exports wrap one or more timers in an array — import every usable one,
+  // isolating each entry's failure so one bad timer can't sink the whole file.
   if (Array.isArray(raw)) {
-    raw = raw.find((x) => isNativeShape(x) || isSecondsProShape(x)) ?? raw[0];
+    const usable = raw.filter((x) => isNativeShape(x) || isSecondsProShape(x));
+    if (usable.length === 0) {
+      throw new Error('contains no recognizable timers (expected .timer exports, or Seconds / Seconds Pro / intervaltimer timers).');
+    }
+    return usable.map((entry, i): ImportEntry => {
+      try {
+        return parseEntry(entry);
+      } catch (err) {
+        const name =
+          (isRecord(entry) && typeof entry.name === 'string' && entry.name.trim()) || `Timer ${i + 1}`;
+        return { name, error: err instanceof Error ? err.message : 'could not be read.' };
+      }
+    });
   }
+  return [parseEntry(raw)];
+}
 
-  // Native first — it is this app's own format, so it wins any ambiguity.
-  if (isNativeShape(raw)) {
-    return hardenNative(raw as Record<string, unknown>);
+/** First timer only — kept for callers that take a single timer per file. */
+export function parseImport(text: string): CompoundTimer {
+  const entries = parseImportAll(text);
+  for (const entry of entries) {
+    if (!isFailedImport(entry)) return entry.timer;
   }
-  if (isSecondsProShape(raw)) {
-    return parseSecondsProFile(JSON.stringify(raw));
-  }
-  throw new Error('is not a recognized timer file (expected a .timer export, or a Seconds / Seconds Pro / intervaltimer file).');
+  throw new Error((entries[0] as FailedImport).error);
 }

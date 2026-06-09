@@ -15,6 +15,10 @@ export interface SyncMeta {
   driveFileId?: string;
   /** ISO timestamp of the last successful push/pull for this timer. */
   lastSyncedAt?: string;
+  /** The Drive copy's `updatedAt` as of the last successful sync/push. When the Drive
+   *  copy's updatedAt differs from this AND the local copy is dirty, both sides changed
+   *  independently — a conflict that must fork rather than silently lose one side. */
+  driveUpdatedAt?: string;
   /** Local edit that has not yet been pushed to Drive. */
   dirty?: boolean;
   /** Tombstone: a 'drive' timer was deleted locally and the Drive file still needs removing. */
@@ -24,7 +28,7 @@ export interface SyncMeta {
 export type SyncMetaMap = Record<string, SyncMeta>;
 
 /** Overall connection lifecycle, resolved before the Drive section commits to a state. */
-export type AuthStatus = 'restoring' | 'connected' | 'local';
+export type AuthStatus = 'restoring' | 'connected' | 'local' | 'reauth';
 
 /** Background sync state surfaced to the user as a status pill. */
 export type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error' | 'offline';

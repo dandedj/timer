@@ -3,16 +3,31 @@ import { useEffect } from 'react';
 interface KeyboardShortcutsOptions {
   onPlay?: () => void;
   onPause?: () => void;
-  onReset?: () => void;
+  /** Reset is requested, not performed — the caller confirms while running. */
+  onResetRequest?: () => void;
   onSkipForward?: () => void;
   onSkipBack?: () => void;
   isRunning?: boolean;
+  /** Set false to suspend all shortcuts (e.g. while a dialog is open). */
+  enabled?: boolean;
 }
 
-export function useKeyboardShortcuts({ onPlay, onPause, onReset, onSkipForward, onSkipBack, isRunning }: KeyboardShortcutsOptions) {
+function isEditableTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  return (
+    target instanceof HTMLInputElement ||
+    target instanceof HTMLTextAreaElement ||
+    target instanceof HTMLSelectElement ||
+    target.isContentEditable
+  );
+}
+
+export function useKeyboardShortcuts({ onPlay, onPause, onResetRequest, onSkipForward, onSkipBack, isRunning, enabled = true }: KeyboardShortcutsOptions) {
   useEffect(() => {
+    if (!enabled) return;
+
     const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (isEditableTarget(e.target)) return;
 
       if (e.code === 'Space') {
         e.preventDefault();
@@ -23,7 +38,7 @@ export function useKeyboardShortcuts({ onPlay, onPause, onReset, onSkipForward, 
         }
       } else if (e.code === 'KeyR' && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
-        onReset?.();
+        onResetRequest?.();
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
         onSkipForward?.();
@@ -35,5 +50,5 @@ export function useKeyboardShortcuts({ onPlay, onPause, onReset, onSkipForward, 
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onPlay, onPause, onReset, onSkipForward, onSkipBack, isRunning]);
+  }, [onPlay, onPause, onResetRequest, onSkipForward, onSkipBack, isRunning, enabled]);
 }

@@ -14,9 +14,18 @@ function relativeTime(iso?: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+function ConnectErrorNote({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p className="absolute right-0 top-full mt-1.5 w-60 px-2.5 py-1.5 rounded-lg bg-brand-navy text-amber-200 text-xs text-right shadow-lg z-30">
+      {message}
+    </p>
+  );
+}
+
 export function ConnectionMenu() {
   const {
-    isConnected, authStatus, user, connecting, syncStatus, lastSyncedAt,
+    isConnected, authStatus, user, connecting, connectError, syncStatus, lastSyncedAt,
     connect, disconnect, syncNow,
   } = useGoogleConnection();
   const [open, setOpen] = useState(false);
@@ -34,22 +43,82 @@ export function ConnectionMenu() {
     return () => document.removeEventListener('mousedown', onDown);
   }, [open]);
 
+  // Session expired mid-use — silent refresh is popup-blocked, so offer a one-tap
+  // reconnect (the popup is allowed inside the click gesture). The dropdown keeps
+  // disconnect/sign-out reachable even when reconnecting is impossible (e.g. a
+  // browser that always blocks popups).
+  if (authStatus === 'reauth') {
+    return (
+      <div className="relative" ref={ref}>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={connect}
+            disabled={connecting}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-400/20 hover:bg-amber-400/30 transition-colors text-sm font-medium disabled:opacity-50"
+            title="Your Google session expired — reconnect to keep syncing"
+          >
+            {connecting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <AlertCircle size={16} className="text-amber-300" />
+            )}
+            Reconnect
+          </button>
+          <button
+            onClick={() => setOpen((o) => !o)}
+            className="px-1.5 py-1.5 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Connection options"
+          >
+            <ChevronDown size={14} className="opacity-70" />
+          </button>
+        </div>
+        {open && (
+          <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-30 text-brand-navy">
+            <div className="px-4 py-2 border-b border-gray-100">
+              <p className="text-sm font-semibold truncate">{user?.displayName ?? 'Google Drive'}</p>
+              {user?.email && <p className="text-xs text-brand-navy/50 truncate">{user.email}</p>}
+              <p className="flex items-center gap-1.5 text-xs mt-1.5 text-amber-600">
+                <AlertCircle size={12} /> Session expired — changes are saved on this device
+              </p>
+            </div>
+            <button
+              onClick={() => { disconnect(false); close(); }}
+              className="flex items-center gap-2.5 w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50"
+            >
+              <LogOut size={15} className="text-brand-navy/50" /> Disconnect
+            </button>
+            <button
+              onClick={() => { disconnect(true); close(); }}
+              className="w-full px-4 py-2 text-left text-xs text-red-500 hover:text-red-600"
+            >
+              Sign out &amp; remove access from this app
+            </button>
+          </div>
+        )}
+        <ConnectErrorNote message={connectError} />
+      </div>
+    );
+  }
+
   // Not connected — a single clear call to action.
   if (!isConnected) {
     return (
-      <button
-        onClick={connect}
-        disabled={connecting || authStatus === 'restoring'}
-        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium disabled:opacity-50"
-        title="Back up and sync your timers across devices"
-      >
-        {connecting || authStatus === 'restoring' ? (
-          <Loader2 size={16} className="animate-spin" />
-        ) : (
-          <Cloud size={16} />
-        )}
-        {authStatus === 'restoring' ? 'Reconnecting…' : 'Connect Drive'}
-      </button>
+      <div className="relative">
+        <button
+          onClick={connect}
+          disabled={connecting || authStatus === 'restoring'}
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-sm font-medium disabled:opacity-50"
+          title="Back up and sync your timers across devices"
+        >
+          {connecting || authStatus === 'restoring' ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Cloud size={16} />
+          )}
+          {authStatus === 'restoring' ? 'Reconnecting…' : 'Connect Drive'}
+        </button>
+        <ConnectErrorNote message={connectError} />
+      </div>
     );
   }
 

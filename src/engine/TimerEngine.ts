@@ -11,6 +11,7 @@ export class TimerEngine {
   private listeners: Set<StateListener> = new Set();
   private rafHandle: number | null = null;
   private lastWorkerTickMs: number = 0;
+  private lastWorkerTickWallMs: number = 0;
   private accumulatedMs: number = 0;
   private lastCountdownBeep: number = -1;
 
@@ -22,6 +23,7 @@ export class TimerEngine {
     this.audio = new AudioEngine();
     this.state = this.makeIdleState([]);
     this.worker.onmessage = this.handleWorkerTick.bind(this);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   load(sequence: FlatInterval[]): void {
@@ -123,7 +125,7 @@ export class TimerEngine {
     this.notifyListeners();
   }
 
-  /** Jump to a specific interval (by id) and start running from it. */
+  /** Jump to a specific interval (by id), preserving the current transport state. */
   jumpTo(intervalId: string): void {
     const idx = this.state.sequence.findIndex((i) => i.id === intervalId);
     if (idx < 0) return;
@@ -139,18 +141,37 @@ export class TimerEngine {
     this.lastCountdownBeep = -1;
     this.accumulatedMs = 0;
 
-    this.audio.unlock();
-    const wasRunning = this.state.status === 'running';
-    this.state.status = 'running';
-    if (wasRunning) {
+    if (this.state.status === 'running') {
       // Keep ticking without swallowing a tick (no re-baseline needed mid-run).
       this.lastWorkerTickMs = performance.now();
-    } else {
-      this.lastWorkerTickMs = 0; // re-baseline on the first tick after (re)start
-      this.worker.postMessage({ cmd: 'start' });
-      this.startRaf();
+      this.lastWorkerTickWallMs = Date.now();
+      this.audio.playTransition(this.state.sequence[idx].kind !== 'work');
+    } else if (this.state.status === 'finished') {
+      this.state.status = 'paused';
     }
-    this.audio.playTransition(this.state.sequence[idx].kind !== 'work');
+    // Paused/idle: reposition only — no worker start, no RAF, no transition beep
+    // (audio may not be unlocked yet, and beeping while stopped is wrong).
+    this.notifyListeners();
+  }
+
+  /** Restore a previously saved position, landing paused at that point. */
+  restore(intervalIndex: number, secondsRemaining: number): void {
+    if (this.state.sequence.length === 0) return;
+
+    const idx = Math.min(Math.max(0, Math.floor(intervalIndex)), this.state.sequence.length - 1);
+    const fullTicks = Math.max(1, this.state.sequence[idx].durationSeconds * 100);
+    const ticks = Math.min(Math.max(1, Math.round(secondsRemaining * 100)), fullTicks);
+
+    let elapsed = 0;
+    for (let i = 0; i < idx; i++) elapsed += this.state.sequence[i].durationSeconds;
+    elapsed += (fullTicks - ticks) / 100;
+
+    this.state.currentIndex = idx;
+    this.state.ticksRemaining = ticks;
+    this.state.elapsedTotalSeconds = elapsed;
+    this.lastCountdownBeep = -1;
+    this.accumulatedMs = 0;
+    this.state.status = 'paused';
     this.notifyListeners();
   }
 
@@ -175,21 +196,42 @@ export class TimerEngine {
 
   destroy(): void {
     this.stop();
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     this.worker.terminate();
+    this.audio.dispose();
   }
 
   private handleWorkerTick(): void {
+    this.advanceClock();
+  }
+
+  private handleVisibilityChange = (): void => {
+    // Coming back from a locked screen: reconcile against the wall clock
+    // immediately instead of waiting for the next worker tick.
+    if (document.visibilityState === 'visible') {
+      this.advanceClock();
+    }
+  };
+
+  private advanceClock(): void {
     if (this.state.status !== 'running') return;
 
     const now = performance.now();
+    const wallNow = Date.now();
     // On first tick after play/resume, initialize timing baseline
     if (this.lastWorkerTickMs === 0) {
       this.lastWorkerTickMs = now;
+      this.lastWorkerTickWallMs = wallNow;
       return;
     }
-    const elapsed = now - this.lastWorkerTickMs;
+    const monotonicMs = now - this.lastWorkerTickMs;
+    const wallMs = wallNow - this.lastWorkerTickWallMs;
     this.lastWorkerTickMs = now;
-    this.accumulatedMs += elapsed;
+    this.lastWorkerTickWallMs = wallNow;
+    // performance.now() can stall across device sleep (iPadOS), silently losing
+    // locked-screen time. Trust the wall clock when it runs ahead by more than
+    // 1s — large enough to ignore NTP jitter, small enough to catch sleep gaps.
+    this.accumulatedMs += wallMs - monotonicMs > 1000 ? wallMs : monotonicMs;
 
     const centisecondsElapsed = Math.floor(this.accumulatedMs / 10);
     this.accumulatedMs -= centisecondsElapsed * 10;
@@ -199,18 +241,28 @@ export class TimerEngine {
 
   private advance(centiseconds: number): void {
     let remaining = centiseconds;
+    let completions = 0;
 
     while (remaining > 0 && this.state.status === 'running') {
       if (this.state.ticksRemaining <= remaining) {
         remaining -= this.state.ticksRemaining;
         this.state.elapsedTotalSeconds += this.state.ticksRemaining / 100;
         this.state.ticksRemaining = 0;
+        completions++;
         this.onIntervalComplete();
       } else {
         this.state.elapsedTotalSeconds += remaining / 100;
         this.state.ticksRemaining -= remaining;
         remaining = 0;
       }
+    }
+
+    // One transition cue per advance() call, for the interval actually landed
+    // on: after a long suspension a single tick crosses many boundaries, and
+    // per-boundary beeps would all land at the same AudioContext time as a
+    // clipped chord. A catch-up that runs past the end plays only the finish.
+    if (completions > 0 && this.state.status === 'running') {
+      this.audio.playTransition(this.state.sequence[this.state.currentIndex].kind !== 'work');
     }
 
     const secondsLeft = Math.ceil(this.state.ticksRemaining / 100);
@@ -238,9 +290,6 @@ export class TimerEngine {
     const next = this.state.sequence[nextIndex];
     // Enforce minimum 1 centisecond to prevent infinite loop on 0-second intervals
     this.state.ticksRemaining = Math.max(1, next.durationSeconds * 100);
-
-    const isRest = next.kind !== 'work';
-    this.audio.playTransition(isRest);
   }
 
   private startRaf(): void {

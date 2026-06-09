@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, ChevronRight, Trash2, Copy } from 'lucide-react';
 import type { Circuit } from '../../types/timer';
 import { ExerciseList } from './ExerciseList';
@@ -14,6 +14,25 @@ interface CircuitCardProps {
 
 export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDuplicate }: CircuitCardProps) {
   const [expanded, setExpanded] = useState(true);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (confirmTimeoutRef.current !== null) clearTimeout(confirmTimeoutRef.current);
+  }, []);
+
+  // Two-tap delete: first tap arms for 3s, second tap deletes.
+  const handleDelete = () => {
+    if (confirmingDelete) {
+      if (confirmTimeoutRef.current !== null) clearTimeout(confirmTimeoutRef.current);
+      setConfirmingDelete(false);
+      onDelete();
+    } else {
+      setConfirmingDelete(true);
+      if (confirmTimeoutRef.current !== null) clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+    }
+  };
 
   const totalDuration = circuit.exercises.reduce((sum, e) => {
     const exerciseTime = e.durationSeconds;
@@ -65,11 +84,17 @@ export function CircuitCard({ circuit, colorOffset = 0, onChange, onDelete, onDu
             </button>
 
             <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="text-brand-navy/25 hover:text-red-500 transition-colors p-1"
+              onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+              className={`flex items-center gap-1 p-1 rounded-lg transition-colors ${
+                confirmingDelete
+                  ? 'bg-red-500 text-white hover:bg-red-600 px-2'
+                  : 'text-brand-navy/25 hover:text-red-500'
+              }`}
               title="Delete circuit"
+              aria-label="Delete circuit"
             >
               <Trash2 size={18} />
+              {confirmingDelete && <span className="text-xs font-semibold">Delete?</span>}
             </button>
           </div>
 

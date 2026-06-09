@@ -51,6 +51,9 @@ export function computeAutoRest(timer: CompoundTimer): number {
 export function buildSequence(timer: CompoundTimer): FlatInterval[] {
   const intervals: Omit<FlatInterval, 'intervalIndexGlobal' | 'totalIntervalsGlobal'>[] = [];
 
+  // With auto-rest on, the stored per-circuit values may be stale — compute the truth here.
+  const autoRestSeconds = timer.autoRest ? computeAutoRest(timer) : null;
+
   const warmupSeconds = warmupSecondsFor(timer);
   if (warmupSeconds > 0) {
     intervals.push({
@@ -107,12 +110,13 @@ export function buildSequence(timer: CompoundTimer): FlatInterval[] {
 
     // Rest between circuits (not after the last one)
     const isLastCircuit = ci === timer.circuits.length - 1;
-    if (!isLastCircuit && circuit.restBetweenCircuitsSeconds > 0) {
+    const circuitRestSeconds = autoRestSeconds ?? circuit.restBetweenCircuitsSeconds;
+    if (!isLastCircuit && circuitRestSeconds > 0) {
       intervals.push({
         id: uuidv4(),
         kind: 'rest-circuit' as IntervalKind,
         label: 'Rest (between circuits)',
-        durationSeconds: circuit.restBetweenCircuitsSeconds,
+        durationSeconds: circuitRestSeconds,
         color: REST_CIRCUIT_COLOR,
         circuitName: circuit.name,
         circuitIndex: ci,

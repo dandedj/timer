@@ -16,6 +16,8 @@ interface ExerciseRowProps {
 export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRowProps) {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -60,6 +62,23 @@ export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRo
       item?.scrollIntoView({ block: 'nearest' });
     }
   }, [highlightIndex]);
+
+  useEffect(() => () => {
+    if (confirmTimeoutRef.current !== null) clearTimeout(confirmTimeoutRef.current);
+  }, []);
+
+  // Two-tap delete: first tap arms for 3s, second tap deletes.
+  const handleDelete = () => {
+    if (confirmingDelete) {
+      if (confirmTimeoutRef.current !== null) clearTimeout(confirmTimeoutRef.current);
+      setConfirmingDelete(false);
+      onDelete();
+    } else {
+      setConfirmingDelete(true);
+      if (confirmTimeoutRef.current !== null) clearTimeout(confirmTimeoutRef.current);
+      confirmTimeoutRef.current = setTimeout(() => setConfirmingDelete(false), 3000);
+    }
+  };
 
   const selectSuggestion = (name: string) => {
     onChange({ ...exercise, name });
@@ -156,10 +175,17 @@ export function ExerciseRow({ exercise, onChange, onDelete, onCopy }: ExerciseRo
         <Copy size={16} />
       </button>
       <button
-        onClick={onDelete}
-        className="text-brand-navy/20 hover:text-red-500 transition-colors"
+        onClick={handleDelete}
+        className={`flex items-center gap-1 rounded-lg transition-colors ${
+          confirmingDelete
+            ? 'bg-red-500 text-white hover:bg-red-600 px-2 py-1'
+            : 'text-brand-navy/20 hover:text-red-500'
+        }`}
+        title="Delete exercise"
+        aria-label="Delete exercise"
       >
         <Trash2 size={18} />
+        {confirmingDelete && <span className="text-xs font-semibold">Delete?</span>}
       </button>
     </div>
   );

@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Plus, Timer, Upload, FileText, Cloud, CloudOff, Monitor, Loader2, X,
-  Check, AlertCircle, RefreshCw, Clipboard, ChevronDown,
+  Check, AlertCircle, AlertTriangle, RefreshCw, Clipboard, ChevronDown,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { LibraryTimer, AuthStatus, SyncStatus } from '../../types/sync';
@@ -11,6 +11,8 @@ export interface ImportResult {
   name: string;
   ok: boolean;
   message?: string;
+  /** Import-approximation notes for a timer that imported, e.g. unsupported features dropped. */
+  warnings?: string[];
 }
 
 interface TimerLibraryProps {
@@ -202,19 +204,33 @@ export function TimerLibrary(props: TimerLibraryProps) {
             </button>
           </div>
           <ul className="space-y-1">
-            {importResults.map((r, i) => (
-              <li key={i} className="flex items-start gap-2 text-sm">
-                {r.ok ? (
-                  <Check size={15} className="text-green-600 mt-0.5 shrink-0" />
-                ) : (
-                  <AlertCircle size={15} className="text-red-500 mt-0.5 shrink-0" />
-                )}
-                <span className={r.ok ? 'text-brand-navy/70' : 'text-red-600'}>
-                  <span className="font-medium">{r.name}</span>
-                  {r.message ? ` — ${r.message}` : r.ok ? ' imported' : ''}
-                </span>
-              </li>
-            ))}
+            {importResults.map((r, i) => {
+              const warnings = r.ok ? r.warnings ?? [] : [];
+              return (
+                <li key={i} className="text-sm">
+                  <div className="flex items-start gap-2">
+                    {!r.ok ? (
+                      <AlertCircle size={15} className="text-red-500 mt-0.5 shrink-0" />
+                    ) : warnings.length > 0 ? (
+                      <AlertTriangle size={15} className="text-amber-500 mt-0.5 shrink-0" />
+                    ) : (
+                      <Check size={15} className="text-green-600 mt-0.5 shrink-0" />
+                    )}
+                    <span className={r.ok ? 'text-brand-navy/70' : 'text-red-600'}>
+                      <span className="font-medium">{r.name}</span>
+                      {r.message ? ` — ${r.message}` : r.ok ? ' imported' : ''}
+                    </span>
+                  </div>
+                  {warnings.length > 0 && (
+                    <ul className="ml-6 mt-0.5 space-y-0.5">
+                      {warnings.map((w, wi) => (
+                        <li key={wi} className="text-xs text-amber-600">{w}</li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -436,6 +452,19 @@ function DriveStatus({
       <span className="flex items-center gap-1.5 text-xs font-medium text-brand-navy/40">
         <Loader2 size={13} className="animate-spin" /> Restoring session…
       </span>
+    );
+  }
+  if (authStatus === 'reauth') {
+    // The session expired and nothing is syncing — never claim "Synced" here.
+    return (
+      <button
+        onClick={onConnect}
+        disabled={connecting}
+        className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 hover:text-amber-700 disabled:opacity-50"
+      >
+        {connecting ? <Loader2 size={13} className="animate-spin" /> : <AlertCircle size={13} />}
+        Session expired — Reconnect
+      </button>
     );
   }
   if (!isConnected) {

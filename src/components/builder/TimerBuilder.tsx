@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Play, ClipboardList, GripVertical, ArrowUpDown, Download, Save, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import {
@@ -110,15 +110,9 @@ function InsertCircuitButton({ onClick }: { onClick: () => void }) {
 export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
   const [rearranging, setRearranging] = useState(false);
 
-  // When auto-rest is on, keep every circuit's rest-between-circuits at the value that
-  // fills the target class length. Recomputes as exercises/circuits/target change.
-  useEffect(() => {
-    if (!timer.autoRest) return;
-    const r = computeAutoRest(timer);
-    if (timer.circuits.some((c) => c.restBetweenCircuitsSeconds !== r)) {
-      onChange({ ...timer, circuits: timer.circuits.map((c) => ({ ...c, restBetweenCircuitsSeconds: r })) });
-    }
-  }, [timer, onChange]);
+  // With auto-rest on, the displayed rest is derived — never written back into the
+  // circuits, so opening a timer to look at it does not modify or re-sync it.
+  const autoRestSeconds = timer.autoRest ? computeAutoRest(timer) : null;
 
   const exportTimer = () => {
     const json = JSON.stringify(timer, null, 2);
@@ -274,9 +268,9 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
             Auto-adjust rest between circuits to fill the class length
           </span>
         </label>
-        {timer.autoRest ? (
+        {autoRestSeconds !== null ? (
           <span className="px-2.5 py-1 rounded-lg text-sm font-semibold bg-brand/10 text-brand">
-            Calculated rest: {formatRest(computeAutoRest(timer))} between circuits
+            Calculated rest: {formatRest(autoRestSeconds)} between circuits
           </span>
         ) : (
           <span className="text-xs text-brand-navy/40">(set the class length in the timeline above)</span>
@@ -336,11 +330,11 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
                 />
                 {!isLast && (
                   <div className="flex items-center gap-2 px-4 py-2 mb-1">
-                    {timer.autoRest ? (
+                    {autoRestSeconds !== null ? (
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-brand-navy/50 font-medium">Rest after circuit:</span>
                         <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-brand/10 text-brand" title="Auto-calculated to fill the class length">
-                          Auto · {formatRest(circuit.restBetweenCircuitsSeconds)}
+                          Auto · {formatRest(autoRestSeconds)}
                         </span>
                       </div>
                     ) : (

@@ -10,6 +10,8 @@ declare namespace google.accounts.oauth2 {
     scope: string;
     callback: (response: TokenResponse) => void;
     error_callback?: (error: { type: string; message: string }) => void;
+    /** Email of the account to pre-select, pinning silent token requests to it. */
+    hint?: string;
   }
 
   interface TokenResponse {

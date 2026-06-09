@@ -55,7 +55,7 @@ function PlaybackTimelineImpl({ sequence, currentIndex, elapsedSeconds, totalSec
               key={interval.id}
               type="button"
               onClick={() => onJump(interval.id)}
-              title={`${kindName} — ${formatDuration(interval.durationSeconds)}  ·  starts at ${formatDuration(startSeconds)}\nClick to start here`}
+              title={`${kindName} — ${formatDuration(interval.durationSeconds)}  ·  starts at ${formatDuration(startSeconds)}\nClick to jump here`}
               className="h-full transition-[filter,opacity] hover:brightness-125 focus:outline-none focus:brightness-125"
               style={{
                 width: `${(interval.durationSeconds / totalSeconds) * 100}%`,

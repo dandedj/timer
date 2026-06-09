@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Printer, ArrowLeft, Columns2, Rows3 } from 'lucide-react';
 import { useStorage } from '../storage/storageContext';
 import type { CompoundTimer, Circuit } from '../types/timer';
-import { buildSequence } from '../engine/sequenceBuilder';
+import { buildSequence, computeAutoRest } from '../engine/sequenceBuilder';
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -42,6 +42,8 @@ export function CheatsheetPage() {
 
   const sequence = buildSequence(timer);
   const totalSeconds = sequence.reduce((s, i) => s + i.durationSeconds, 0);
+  // With auto-rest on, stored per-circuit values may be stale; playback uses the computed rest.
+  const circuitRestSeconds = timer.autoRest ? computeAutoRest(timer) : null;
 
   return (
     <div className="min-h-screen bg-white">
@@ -114,8 +116,8 @@ export function CheatsheetPage() {
                     {circuit.exercises[0]?.durationSeconds ?? 0}s work
                     {circuit.restBetweenExercisesSeconds > 0 &&
                       ` / ${circuit.restBetweenExercisesSeconds}s rest`}
-                    {circuit.restBetweenCircuitsSeconds > 0 &&
-                      ` / ${circuit.restBetweenCircuitsSeconds}s after circuit`}
+                    {(circuitRestSeconds ?? circuit.restBetweenCircuitsSeconds) > 0 &&
+                      ` / ${circuitRestSeconds ?? circuit.restBetweenCircuitsSeconds}s after circuit`}
                   </span>
                   <span className={`text-brand-navy/40 font-mono ml-auto ${twoColumn ? 'text-xs print:text-[11px]' : 'text-base print:text-sm'}`}>
                     {formatDuration(duration)}

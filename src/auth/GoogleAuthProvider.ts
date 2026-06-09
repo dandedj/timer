@@ -11,6 +11,63 @@ export class AuthExpiredError extends Error {
   }
 }
 
+function gisAvailable(): boolean {
+  return typeof google !== 'undefined' && !!google.accounts?.oauth2;
+}
+
+const GIS_SRC = 'https://accounts.google.com/gsi/client';
+let gisInjection: HTMLScriptElement | null = null;
+
+/** (Re)load the GIS script. The static tag in index.html is never retried by the
+ *  browser once it errors (e.g. the PWA was launched offline), so each attempt here
+ *  injects a fresh tag unless one is already in flight. */
+function injectGisScript(): void {
+  if (typeof document === 'undefined' || gisAvailable() || gisInjection) return;
+  const script = document.createElement('script');
+  script.src = GIS_SRC;
+  script.async = true;
+  script.onerror = () => {
+    // Failed (still offline?) — drop it so the next attempt injects again.
+    script.remove();
+    gisInjection = null;
+  };
+  document.head.appendChild(script);
+  gisInjection = script;
+}
+
+/**
+ * The GIS script loads async/defer from accounts.google.com, so it may not have
+ * arrived yet when restore or connect runs. Resolves true as soon as the script is
+ * available (immediately if it already is), false after timeoutMs. When the static
+ * script failed outright, retries the load so connectivity returning mid-session
+ * can still bring sign-in back without an app restart.
+ */
+export function ensureGisLoaded(timeoutMs = 8000): Promise<boolean> {
+  if (gisAvailable()) return Promise.resolve(true);
+  // Page fully loaded without GIS → the static tag failed; only a re-inject can fix it.
+  if (typeof document !== 'undefined' && document.readyState === 'complete') injectGisScript();
+  return new Promise((resolve) => {
+    const started = Date.now();
+    let reinjected = false;
+    const timer = setInterval(() => {
+      if (gisAvailable()) {
+        clearInterval(timer);
+        resolve(true);
+      } else {
+        if (!reinjected && Date.now() - started >= 2000) {
+          // Give the static tag a moment, then assume it's gone and load our own.
+          reinjected = true;
+          injectGisScript();
+        }
+        if (Date.now() - started >= timeoutMs) {
+          clearInterval(timer);
+          resolve(false);
+        }
+      }
+    }, 100);
+  });
+}
+
 export class GoogleAuthProvider implements IAuthProvider {
   private tokenClient: google.accounts.oauth2.TokenClient | null = null;
   private accessToken: string | null = null;
@@ -74,10 +131,17 @@ export class GoogleAuthProvider implements IAuthProvider {
       scope: GoogleAuthProvider.SCOPES,
       callback,
       error_callback: errorCallback,
+      // Pin token requests to the stored account: without this, a silent refresh on a
+      // multi-account device can mint a token for a DIFFERENT signed-in account, and a
+      // sync against that account's (empty) Drive would strip the library.
+      hint: this.user?.email,
     });
   }
 
   async signIn(): Promise<User> {
+    if (!(await ensureGisLoaded())) {
+      throw new Error('Google Identity Services not loaded');
+    }
     return new Promise<User>((resolve, reject) => {
       this.initClient(
         async (response) => {
@@ -94,16 +158,21 @@ export class GoogleAuthProvider implements IAuthProvider {
             reject(err);
           }
         },
-        (error) => reject(new Error(error.message || 'OAuth error')),
+        // Preserve the GIS error type ('popup_failed_to_open', 'popup_closed', …) so
+        // callers can surface a useful message instead of a generic failure.
+        (error) => reject(new Error(error.type || error.message || 'OAuth error')),
       );
-      this.tokenClient!.requestAccessToken({ prompt: this.accessToken ? '' : 'consent' });
+      // With a stored session the grant already exists, so prompt '' lets Google
+      // re-issue the token with minimal UI — one tap on reconnect, no re-consent.
+      this.tokenClient!.requestAccessToken({ prompt: this.accessToken || this.user ? '' : 'consent' });
     });
   }
 
   /** Silently refresh the access token (no popup). Returns true on success.
    *  Resolves false after a timeout so a hung GIS callback can never block sync. */
   async refreshToken(): Promise<boolean> {
-    if (typeof google === 'undefined' || !google.accounts?.oauth2) {
+    // Wait for the async GIS script instead of failing instantly on a slow load.
+    if (!(await ensureGisLoaded())) {
       return false;
     }
     return new Promise<boolean>((resolve) => {
@@ -150,8 +219,14 @@ export class GoogleAuthProvider implements IAuthProvider {
    * re-consent. Pass `revoke: true` to fully revoke access (e.g. on a shared computer).
    */
   async signOut(revoke = false): Promise<void> {
-    if (revoke && this.accessToken) {
-      google.accounts.oauth2.revoke(this.accessToken);
+    // Revoke is best-effort: sign-out must clear the local session even when the
+    // GIS script never loaded or the revoke call fails.
+    if (revoke && this.accessToken && gisAvailable()) {
+      try {
+        google.accounts.oauth2.revoke(this.accessToken);
+      } catch {
+        // Ignore — local session is cleared regardless.
+      }
     }
     this.clearSession();
     this.tokenClient = null;
