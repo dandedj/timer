@@ -3,9 +3,10 @@ import { colorForIndex, REST_COLOR } from '../engine/colorPalette';
 import type { Circuit, CompoundTimer, Exercise } from '../types/timer';
 
 interface SecondsInterval {
-  name: string;
-  duration: number;
-  color: number | string;
+  name?: string;
+  duration?: number;
+  color?: number | string;
+  rest?: boolean;
 }
 
 interface SecondsProFile {
@@ -31,22 +32,29 @@ function intervalColor(interval: SecondsInterval, isRest: boolean): string {
   if (isRest) return REST_COLOR;
   const colorNum = typeof interval.color === 'string'
     ? parseInt(interval.color, 10)
-    : interval.color;
+    : interval.color ?? 0;
   return colorForIndex(Number.isFinite(colorNum) ? colorNum : 0);
 }
 
+function hasDuration(interval: SecondsInterval | undefined): interval is SecondsInterval {
+  return !!interval && Number(interval.duration) > 0;
+}
+
 function isRestInterval(interval: SecondsInterval): boolean {
+  if (typeof interval.rest === 'boolean') return interval.rest;
   const colorNum = typeof interval.color === 'string'
     ? parseInt(interval.color, 10)
     : interval.color;
-  return colorNum === 4 || interval.name.toLowerCase().includes('rest');
+  const name = typeof interval.name === 'string' ? interval.name : '';
+  return colorNum === 4 || name.toLowerCase().includes('rest');
 }
 
 function toExercise(interval: SecondsInterval, isRest: boolean): Exercise {
+  const duration = Number(interval.duration);
   return {
     id: uuidv4(),
-    name: interval.name,
-    durationSeconds: interval.duration,
+    name: typeof interval.name === 'string' ? interval.name : isRest ? 'Rest' : 'Exercise',
+    durationSeconds: Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : 0,
     color: intervalColor(interval, isRest),
   };
 }
@@ -72,7 +80,7 @@ function parseType3(file: SecondsProFile): Circuit[] {
   const circuits: Circuit[] = [];
   const sets = parseSetCount(file.numberOfSets);
 
-  if (file.warmup && file.warmup.duration > 0) {
+  if (hasDuration(file.warmup)) {
     circuits.push(buildCircuit(
       'Warmup',
       [toExercise(file.warmup, false)],
@@ -85,7 +93,7 @@ function parseType3(file: SecondsProFile): Circuit[] {
   const exercises: Exercise[] = file.intervals.map(interval =>
     toExercise(interval, false),
   );
-  const restBetweenExercises = file.intervalRest?.duration ?? 0;
+  const restBetweenExercises = Number(file.intervalRest?.duration) || 0;
 
   circuits.push(buildCircuit(
     file.name,
@@ -95,7 +103,7 @@ function parseType3(file: SecondsProFile): Circuit[] {
     15,
   ));
 
-  if (file.cooldown && file.cooldown.duration > 0) {
+  if (hasDuration(file.cooldown)) {
     circuits.push(buildCircuit(
       'Cooldown',
       [toExercise(file.cooldown, false)],
@@ -120,7 +128,7 @@ function parseType0(file: SecondsProFile): Circuit[] {
     );
   }
 
-  const restBetweenExercises = rests.length > 0 ? rests[0].duration : 0;
+  const restBetweenExercises = rests.length > 0 ? Number(rests[0].duration) || 0 : 0;
   const exercises: Exercise[] = nonRests.map(interval =>
     toExercise(interval, false),
   );
@@ -135,7 +143,7 @@ function parseType4(file: SecondsProFile): Circuit[] {
 
   const circuits: Circuit[] = [];
 
-  if (file.warmup && file.warmup.duration > 0) {
+  if (hasDuration(file.warmup)) {
     circuits.push(buildCircuit('Warmup', [toExercise(file.warmup, false)], 1, 0, 0));
   }
 
@@ -144,7 +152,7 @@ function parseType4(file: SecondsProFile): Circuit[] {
     circuits.push(...subCircuits);
   }
 
-  if (file.cooldown && file.cooldown.duration > 0) {
+  if (hasDuration(file.cooldown)) {
     circuits.push(buildCircuit('Cooldown', [toExercise(file.cooldown, false)], 1, 0, 0));
   }
 
@@ -152,23 +160,22 @@ function parseType4(file: SecondsProFile): Circuit[] {
 }
 
 function parseCircuits(file: SecondsProFile): Circuit[] {
-  if (file.type === 4) {
+  const hasIntervals = Array.isArray(file.intervals) && file.intervals.length > 0;
+  const hasTimers = Array.isArray(file.timers) && file.timers.length > 0;
+
+  if (file.type === 4 || (hasTimers && !hasIntervals)) {
     return parseType4(file);
   }
 
-  if (!Array.isArray(file.intervals) || file.intervals.length === 0) {
-    throw new Error(`"${file.name}": file contains no intervals.`);
+  if (!hasIntervals) {
+    throw new Error(`"${file.name}": file has no intervals or sub-timers to import.`);
   }
 
   if (file.type === 3) {
     return parseType3(file);
-  } else if (file.type === 0) {
-    return parseType0(file);
   }
-
-  throw new Error(
-    `"${file.name}": unsupported Seconds Pro timer type ${file.type}. Supported types: 0, 3, 4.`,
-  );
+  // type 0 and any other interval-based type — treat rests inline (best effort).
+  return parseType0(file);
 }
 
 export function parseSecondsProFile(jsonText: string): CompoundTimer {
@@ -181,8 +188,8 @@ export function parseSecondsProFile(jsonText: string): CompoundTimer {
 
   const file = raw as SecondsProFile;
 
-  if (!file.name || typeof file.name !== 'string') {
-    throw new Error('Invalid Seconds Pro file: missing timer name.');
+  if (typeof file.name !== 'string' || !file.name.trim()) {
+    file.name = 'Imported timer';
   }
 
   // Normalize `type`: some exports stringify it; default by structure when absent.

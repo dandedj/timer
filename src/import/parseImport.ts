@@ -109,12 +109,17 @@ export function parseImport(text: string): CompoundTimer {
     throw new Error('is not valid JSON.');
   }
 
+  // Some exports wrap one or more timers in an array — use the first usable one.
+  if (Array.isArray(raw)) {
+    raw = raw.find((x) => isNativeShape(x) || isSecondsProShape(x)) ?? raw[0];
+  }
+
   // Native first — it is this app's own format, so it wins any ambiguity.
   if (isNativeShape(raw)) {
     return hardenNative(raw as Record<string, unknown>);
   }
   if (isSecondsProShape(raw)) {
-    return parseSecondsProFile(text);
+    return parseSecondsProFile(JSON.stringify(raw));
   }
-  throw new Error('is not a recognized timer file (expected a .timer export or a Seconds Pro file).');
+  throw new Error('is not a recognized timer file (expected a .timer export, or a Seconds / Seconds Pro / intervaltimer file).');
 }
