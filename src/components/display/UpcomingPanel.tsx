@@ -83,11 +83,11 @@ export function UpcomingPanel({ upcoming, onSelect, layout = 'sidebar' }: Upcomi
       >
         <div
           className="text-white font-black leading-none truncate"
-          style={{ fontSize: isStrip ? 'clamp(1.35rem, 6vw, 2rem)' : 'clamp(2rem, 4.5vw, 3.75rem)' }}
+          style={{ fontSize: isStrip ? 'clamp(1.6rem, 7vw, 2.25rem)' : 'clamp(2.5rem, 5.25vw, 4.25rem)' }}
         >
           {token}
         </div>
-        {!isRest && !isStrip && (
+        {!isRest && (
           <div className="text-white/85 text-xs font-semibold truncate mt-1">{interval.label}</div>
         )}
         <div className="flex items-center gap-2 mt-0.5">
