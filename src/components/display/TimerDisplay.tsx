@@ -133,26 +133,28 @@ export function TimerDisplay({ snapshot, onPlay, onPause, onSkipForward, onSkipB
         {clock}
         {stats}
         <UpcomingPanel upcoming={snapshot.upcoming} onSelect={onJump} layout="strip" />
-        {exerciseBar}
         {timeline}
+        {exerciseBar}
       </div>
     );
   }
 
   return (
     <div
-      className="flex h-screen select-none transition-colors duration-300"
+      className="flex flex-col h-screen select-none transition-colors duration-300"
       style={{ backgroundColor: bgColor }}
     >
-      <div className="flex flex-col flex-1 min-w-0">
-        {header}
-        {clock}
-        {stats}
-        {exerciseBar}
-        {timeline}
+      <div className="flex flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-w-0">
+          {header}
+          {clock}
+          {stats}
+        </div>
+        <UpcomingPanel upcoming={snapshot.upcoming} onSelect={onJump} layout="sidebar" />
       </div>
 
-      <UpcomingPanel upcoming={snapshot.upcoming} onSelect={onJump} layout="sidebar" />
+      {timeline}
+      {exerciseBar}
     </div>
   );
 }
