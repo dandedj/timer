@@ -11,9 +11,11 @@ export const EXERCISE_COLORS = [
   '#9C27B0',
 ] as const;
 
-export const REST_COLOR = '#0B7689';
-export const REST_SET_COLOR = '#086070';
-export const REST_CIRCUIT_COLOR = '#064E5C';
+// Rests are always gray so they read instantly as "not an exercise" — dark
+// enough that the white clock and labels stay legible on the full-screen fill.
+export const REST_COLOR = '#6B7280';
+export const REST_SET_COLOR = '#4B5563';
+export const REST_CIRCUIT_COLOR = '#374151';
 export const WARMUP_COLOR = '#B45309';
 
 export function colorForIndex(index: number): string {
