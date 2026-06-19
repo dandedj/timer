@@ -4,6 +4,9 @@ import { AudioEngine } from './audioEngine';
 
 type StateListener = (snapshot: EngineSnapshot) => void;
 
+/** Past this many seconds into an exercise, "previous" restarts it instead of stepping back. */
+const PREVIOUS_RESTART_THRESHOLD_SECONDS = 3;
+
 export class TimerEngine {
   private worker: Worker;
   private audio: AudioEngine;
@@ -125,10 +128,59 @@ export class TimerEngine {
     this.notifyListeners();
   }
 
+  /**
+   * "Previous" at exercise granularity (music-player semantics): a few seconds
+   * into the current exercise it restarts that exercise; at the very start — or
+   * while resting between exercises — it jumps to the start of the exercise
+   * before this one, skipping over rest intervals.
+   */
+  previousExercise(): void {
+    const seq = this.state.sequence;
+    if (seq.length === 0) return;
+
+    const idx = this.state.currentIndex;
+    const current = seq[idx];
+    const isExercise = (i: FlatInterval) => i.kind === 'work' || i.kind === 'warmup';
+
+    // The exercise governing the current position: itself when we're on one,
+    // otherwise the most recent exercise before this rest.
+    let anchor = idx;
+    while (anchor > 0 && !isExercise(seq[anchor])) anchor--;
+
+    let target: number;
+    if (!isExercise(current)) {
+      // Resting between exercises: return to the start of the one that just ran.
+      target = anchor;
+    } else {
+      const fullTicks = Math.max(1, current.durationSeconds * 100);
+      const elapsedInCurrent = (fullTicks - this.state.ticksRemaining) / 100;
+      if (elapsedInCurrent > PREVIOUS_RESTART_THRESHOLD_SECONDS) {
+        // Mid-exercise: a single press restarts it.
+        target = anchor; // === idx
+      } else {
+        // At the start: step back to the previous exercise, skipping rests.
+        target = anchor;
+        for (let i = anchor - 1; i >= 0; i--) {
+          if (isExercise(seq[i])) {
+            target = i;
+            break;
+          }
+        }
+      }
+    }
+
+    this.jumpToIndex(target);
+  }
+
   /** Jump to a specific interval (by id), preserving the current transport state. */
   jumpTo(intervalId: string): void {
     const idx = this.state.sequence.findIndex((i) => i.id === intervalId);
     if (idx < 0) return;
+    this.jumpToIndex(idx);
+  }
+
+  private jumpToIndex(idx: number): void {
+    if (idx < 0 || idx >= this.state.sequence.length) return;
 
     let elapsed = 0;
     for (let i = 0; i < idx; i++) elapsed += this.state.sequence[i].durationSeconds;

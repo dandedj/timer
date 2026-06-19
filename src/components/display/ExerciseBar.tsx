@@ -1,4 +1,4 @@
-import { SkipBack, SkipForward, Play, Pause, RotateCcw } from 'lucide-react';
+import { Rewind, SkipBack, SkipForward, Play, Pause, RotateCcw } from 'lucide-react';
 import type { FlatInterval } from '../../types/timer';
 
 interface ExerciseBarProps {
@@ -9,12 +9,13 @@ interface ExerciseBarProps {
   onPause: () => void;
   onSkipForward: () => void;
   onSkipBack: () => void;
+  onPreviousExercise: () => void;
   onReset: () => void;
 }
 
-export function ExerciseBar({ current, next, isRunning, onPlay, onPause, onSkipForward, onSkipBack, onReset }: ExerciseBarProps) {
+export function ExerciseBar({ current, next, isRunning, onPlay, onPause, onSkipForward, onSkipBack, onPreviousExercise, onReset }: ExerciseBarProps) {
   return (
-    <div className="flex h-20 text-white text-xl font-bold">
+    <div className="flex h-20 shrink-0 text-white text-xl font-bold">
       <button
         onClick={onReset}
         className="w-16 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
@@ -24,9 +25,17 @@ export function ExerciseBar({ current, next, isRunning, onPlay, onPause, onSkipF
       </button>
 
       <button
+        onClick={onPreviousExercise}
+        className="w-16 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
+        title="Previous exercise (Shift+Left Arrow)"
+      >
+        <Rewind size={24} />
+      </button>
+
+      <button
         onClick={onSkipBack}
         className="w-16 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
-        title="Previous (Left Arrow)"
+        title="Previous interval (Left Arrow)"
       >
         <SkipBack size={24} />
       </button>
@@ -49,7 +58,7 @@ export function ExerciseBar({ current, next, isRunning, onPlay, onPause, onSkipF
       <button
         onClick={onSkipForward}
         className="w-16 flex items-center justify-center bg-black/30 hover:bg-black/40 transition-colors"
-        title="Next (Right Arrow)"
+        title="Next interval (Right Arrow)"
       >
         <SkipForward size={24} />
       </button>

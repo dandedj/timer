@@ -29,7 +29,7 @@ export function DisplayPage() {
     return fresh ? saved : null;
   });
   const lastResumeSaveRef = useRef(0);
-  const { snapshot, play, pause, reset, skipForward, skipBack, jumpTo, restore, setVolume, previewBeep } = useTimerEngine(timer);
+  const { snapshot, play, pause, reset, skipForward, skipBack, previousExercise, jumpTo, restore, setVolume, previewBeep } = useTimerEngine(timer);
   const isRunning = snapshot.status === 'running';
 
   useWakeLock(isRunning);
@@ -120,6 +120,7 @@ export function DisplayPage() {
     onResetRequest: handleResetRequest,
     onSkipForward: skipForward,
     onSkipBack: skipBack,
+    onPreviousExercise: previousExercise,
     isRunning,
     enabled: confirmAction === null,
   });
@@ -159,6 +160,7 @@ export function DisplayPage() {
         onPause={pause}
         onSkipForward={skipForward}
         onSkipBack={skipBack}
+        onPreviousExercise={previousExercise}
         onJump={jumpTo}
         onReset={handleResetRequest}
         onVolumeChange={setVolume}

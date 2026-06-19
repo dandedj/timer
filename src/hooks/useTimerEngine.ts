@@ -50,6 +50,7 @@ export function useTimerEngine(timer: CompoundTimer | null) {
   const reset = useCallback(() => engineRef.current?.reset(), []);
   const skipForward = useCallback(() => engineRef.current?.skipForward(), []);
   const skipBack = useCallback(() => engineRef.current?.skipBack(), []);
+  const previousExercise = useCallback(() => engineRef.current?.previousExercise(), []);
   const jumpTo = useCallback((id: string) => engineRef.current?.jumpTo(id), []);
   const restore = useCallback(
     (intervalIndex: number, secondsRemaining: number) => engineRef.current?.restore(intervalIndex, secondsRemaining),
@@ -58,5 +59,5 @@ export function useTimerEngine(timer: CompoundTimer | null) {
   const setVolume = useCallback((v: number) => engineRef.current?.setVolume(v), []);
   const previewBeep = useCallback(() => engineRef.current?.previewBeep(), []);
 
-  return { snapshot, play, pause, reset, skipForward, skipBack, jumpTo, restore, setVolume, previewBeep };
+  return { snapshot, play, pause, reset, skipForward, skipBack, previousExercise, jumpTo, restore, setVolume, previewBeep };
 }

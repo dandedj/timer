@@ -7,6 +7,8 @@ interface KeyboardShortcutsOptions {
   onResetRequest?: () => void;
   onSkipForward?: () => void;
   onSkipBack?: () => void;
+  /** Step back to the previous exercise (skips rests). Bound to Shift+Left. */
+  onPreviousExercise?: () => void;
   isRunning?: boolean;
   /** Set false to suspend all shortcuts (e.g. while a dialog is open). */
   enabled?: boolean;
@@ -22,7 +24,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
   );
 }
 
-export function useKeyboardShortcuts({ onPlay, onPause, onResetRequest, onSkipForward, onSkipBack, isRunning, enabled = true }: KeyboardShortcutsOptions) {
+export function useKeyboardShortcuts({ onPlay, onPause, onResetRequest, onSkipForward, onSkipBack, onPreviousExercise, isRunning, enabled = true }: KeyboardShortcutsOptions) {
   useEffect(() => {
     if (!enabled) return;
 
@@ -44,11 +46,12 @@ export function useKeyboardShortcuts({ onPlay, onPause, onResetRequest, onSkipFo
         onSkipForward?.();
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        onSkipBack?.();
+        if (e.shiftKey) onPreviousExercise?.();
+        else onSkipBack?.();
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [onPlay, onPause, onResetRequest, onSkipForward, onSkipBack, isRunning, enabled]);
+  }, [onPlay, onPause, onResetRequest, onSkipForward, onSkipBack, onPreviousExercise, isRunning, enabled]);
 }

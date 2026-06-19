@@ -4,6 +4,8 @@ import type { FlatInterval } from '../../types/timer';
 interface UpcomingPanelProps {
   upcoming: FlatInterval[];
   onSelect?: (intervalId: string) => void;
+  /** 'sidebar' = vertical column (landscape); 'strip' = horizontal row (portrait). */
+  layout?: 'sidebar' | 'strip';
 }
 
 function formatDuration(seconds: number): string {
@@ -16,8 +18,9 @@ function fingerprint(intervals: FlatInterval[]): string {
   return intervals.map(i => i.id).join(',');
 }
 
-export function UpcomingPanel({ upcoming, onSelect }: UpcomingPanelProps) {
-  const items = upcoming.slice(0, 5);
+export function UpcomingPanel({ upcoming, onSelect, layout = 'sidebar' }: UpcomingPanelProps) {
+  const isStrip = layout === 'strip';
+  const items = upcoming.slice(0, isStrip ? 3 : 5);
   const prevFingerprint = useRef('');
   const [animKey, setAnimKey] = useState(0);
 
@@ -31,38 +34,53 @@ export function UpcomingPanel({ upcoming, onSelect }: UpcomingPanelProps) {
 
   if (items.length === 0) return null;
 
+  const cards = items.map((interval, i) => (
+    <button
+      key={`${animKey}-${i}`}
+      type="button"
+      onClick={() => onSelect?.(interval.id)}
+      title="Jump to this interval"
+      className={
+        isStrip
+          ? 'flex-1 min-w-0 rounded-lg px-3 py-1.5 flex flex-col justify-center upcoming-card text-left transition-transform hover:scale-[1.03] hover:ring-2 hover:ring-white/60 cursor-pointer'
+          : 'flex-1 rounded-lg px-3 py-2 flex flex-col justify-center min-h-0 upcoming-card text-left w-full transition-transform hover:scale-[1.03] hover:ring-2 hover:ring-white/60 cursor-pointer'
+      }
+      style={{
+        backgroundColor: interval.color,
+        opacity: 1 - i * 0.1,
+        animationDelay: `${i * 60}ms`,
+      }}
+    >
+      <div className="text-white font-bold text-sm truncate">{interval.label}</div>
+      <div className="flex items-center gap-2 mt-0.5">
+        <span className="text-white/80 text-xs font-mono">{formatDuration(interval.durationSeconds)}</span>
+        {interval.repCount != null && interval.repCount > 0 && (
+          <span className="text-white/80 text-xs">{interval.repCount} reps</span>
+        )}
+        {interval.kind !== 'work' && (
+          <span className="text-white/60 text-[10px] uppercase">rest</span>
+        )}
+      </div>
+    </button>
+  ));
+
+  if (isStrip) {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 bg-black/20 shrink-0">
+        <div className="text-[10px] uppercase tracking-widest font-semibold text-white/50 shrink-0 leading-tight w-12">
+          Up Next
+        </div>
+        <div className="flex-1 flex gap-2 min-w-0">{cards}</div>
+      </div>
+    );
+  }
+
   return (
     <div className="w-56 flex flex-col p-2 bg-black/20 overflow-hidden">
       <div className="text-[10px] uppercase tracking-widest font-semibold text-white/50 px-1 mb-1.5 shrink-0">
         Up Next
       </div>
-      <div className="flex-1 flex flex-col gap-1.5 min-h-0">
-        {items.map((interval, i) => (
-          <button
-            key={`${animKey}-${i}`}
-            type="button"
-            onClick={() => onSelect?.(interval.id)}
-            title="Jump to this interval"
-            className="flex-1 rounded-lg px-3 py-2 flex flex-col justify-center min-h-0 upcoming-card text-left w-full transition-transform hover:scale-[1.03] hover:ring-2 hover:ring-white/60 cursor-pointer"
-            style={{
-              backgroundColor: interval.color,
-              opacity: 1 - i * 0.1,
-              animationDelay: `${i * 60}ms`,
-            }}
-          >
-            <div className="text-white font-bold text-sm truncate">{interval.label}</div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-white/80 text-xs font-mono">{formatDuration(interval.durationSeconds)}</span>
-              {interval.repCount != null && interval.repCount > 0 && (
-                <span className="text-white/80 text-xs">{interval.repCount} reps</span>
-              )}
-              {interval.kind !== 'work' && (
-                <span className="text-white/60 text-[10px] uppercase">rest</span>
-              )}
-            </div>
-          </button>
-        ))}
-      </div>
+      <div className="flex-1 flex flex-col gap-1.5 min-h-0">{cards}</div>
     </div>
   );
 }
