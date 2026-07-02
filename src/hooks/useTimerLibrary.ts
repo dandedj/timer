@@ -32,26 +32,6 @@ export function useTimerLibrary() {
 
   const deleteTimer = useCallback((id: string) => storage.deleteTimer(id), [storage]);
 
-  const duplicateTimer = useCallback(async (id: string) => {
-    const original = await storage.getTimer(id);
-    if (!original) return;
-    const now = new Date().toISOString();
-    const copy: CompoundTimer = {
-      ...original,
-      id: uuidv4(),
-      name: `${original.name} (copy)`,
-      createdAt: now,
-      updatedAt: now,
-      circuits: original.circuits.map((c) => ({
-        ...c,
-        id: uuidv4(),
-        exercises: c.exercises.map((e) => ({ ...e, id: uuidv4() })),
-      })),
-    };
-    await storage.saveTimer(copy);
-    return copy;
-  }, [storage]);
-
   const promoteToDrive = useCallback((id: string) => storage.promoteToDrive(id), [storage]);
 
   return {
@@ -65,7 +45,6 @@ export function useTimerLibrary() {
     syncNow,
     saveTimer,
     deleteTimer,
-    duplicateTimer,
     promoteToDrive,
   };
 }

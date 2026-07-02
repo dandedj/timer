@@ -1,10 +1,12 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { TimerLibrary, type ImportResult } from '../components/library/TimerLibrary';
 import { UndoToast } from '../components/library/UndoToast';
 import { useTimerLibrary } from '../hooks/useTimerLibrary';
 import { useGoogleConnection } from '../hooks/useGoogleConnection';
 import { parseImportAll, isFailedImport, type ImportEntry } from '../import/parseImport';
 import { isLikelyUrl, fetchTimerText } from '../import/importFromUrl';
+import type { CompoundTimer } from '../types/timer';
 
 /** How long a confirmed delete stays undoable before it commits (also to Drive). */
 const UNDO_DELETE_MS = 8000;
@@ -12,9 +14,10 @@ const UNDO_DELETE_MS = 8000;
 export function LibraryPage() {
   const {
     timers, deviceTimers, driveTimers, loading, isConnected, syncStatus, lastSyncedAt,
-    syncNow, duplicateTimer, deleteTimer, saveTimer, promoteToDrive,
+    syncNow, deleteTimer, saveTimer, promoteToDrive,
   } = useTimerLibrary();
   const { authStatus, driveAvailable, connecting, connect } = useGoogleConnection();
+  const navigate = useNavigate();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ id: string; name: string } | null>(null);
   const pendingDeleteRef = useRef<{ id: string; timeout: ReturnType<typeof setTimeout> } | null>(null);
@@ -113,6 +116,17 @@ export function LibraryPage() {
     return results;
   }, [saveTimer]);
 
+  // A copy exists to be built on — save it, then open it in the builder.
+  const handleCopy = useCallback(async (copy: CompoundTimer) => {
+    try {
+      const saved = await saveTimer(copy);
+      navigate(`/builder/${saved.id}`);
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'it could not be saved.';
+      window.alert(`The copy was not created — ${reason}`);
+    }
+  }, [saveTimer, navigate]);
+
   const handleImportFiles = useCallback(async (files: File[]) => {
     const results: ImportResult[] = [];
     for (const file of files) {
@@ -156,7 +170,7 @@ export function LibraryPage() {
         connecting={connecting}
         onConnect={connect}
         onSyncNow={syncNow}
-        onDuplicate={duplicateTimer}
+        onCopy={handleCopy}
         onDelete={handleDelete}
         onPromote={promoteToDrive}
         deleteConfirmId={deleteConfirm}

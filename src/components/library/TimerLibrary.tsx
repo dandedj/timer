@@ -4,8 +4,10 @@ import {
   Check, AlertCircle, AlertTriangle, RefreshCw, Clipboard, ChevronDown,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import type { CompoundTimer } from '../../types/timer';
 import type { LibraryTimer, AuthStatus, SyncStatus } from '../../types/sync';
 import { TimerCard } from './TimerCard';
+import { CopyTimerDialog } from './CopyTimerDialog';
 
 export interface ImportResult {
   name: string;
@@ -28,7 +30,7 @@ interface TimerLibraryProps {
   connecting: boolean;
   onConnect: () => void;
   onSyncNow: () => void;
-  onDuplicate: (id: string) => void;
+  onCopy: (copy: CompoundTimer) => void;
   onDelete: (id: string) => void;
   onPromote: (id: string) => void;
   deleteConfirmId?: string | null;
@@ -65,12 +67,13 @@ function SkeletonCard() {
 export function TimerLibrary(props: TimerLibraryProps) {
   const {
     timers, deviceTimers, driveTimers, loading, driveAvailable, isConnected, authStatus,
-    syncStatus, lastSyncedAt, connecting, onConnect, onSyncNow, onDuplicate, onDelete,
+    syncStatus, lastSyncedAt, connecting, onConnect, onSyncNow, onCopy, onDelete,
     onPromote, deleteConfirmId, onImportFiles, onImportText, importing, importResults, onDismissResults,
   } = props;
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importMenuOpen, setImportMenuOpen] = useState(false);
+  const [copySource, setCopySource] = useState<LibraryTimer | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [pasteText, setPasteText] = useState('');
   const [dragging, setDragging] = useState(false);
@@ -275,7 +278,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
                 origin={t.origin}
                 dirty={t.dirty}
                 showBadge={false}
-                onDuplicate={() => onDuplicate(t.id)}
+                onCopy={() => setCopySource(t)}
                 onDelete={() => onDelete(t.id)}
                 confirmingDelete={deleteConfirmId === t.id}
               />
@@ -303,7 +306,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
                     origin={t.origin}
                     dirty={t.dirty}
                     isConnected={isConnected}
-                    onDuplicate={() => onDuplicate(t.id)}
+                    onCopy={() => setCopySource(t)}
                     onDelete={() => onDelete(t.id)}
                     onPromote={() => onPromote(t.id)}
                     confirmingDelete={deleteConfirmId === t.id}
@@ -367,7 +370,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
                         origin={t.origin}
                         dirty={t.dirty}
                         isConnected={isConnected}
-                        onDuplicate={() => onDuplicate(t.id)}
+                        onCopy={() => setCopySource(t)}
                         onDelete={() => onDelete(t.id)}
                         confirmingDelete={deleteConfirmId === t.id}
                       />
@@ -393,6 +396,19 @@ export function TimerLibrary(props: TimerLibraryProps) {
             <p className="text-sm text-brand-navy/50">.timer or Seconds Pro files</p>
           </div>
         </div>
+      )}
+
+      {/* Selective copy dialog — keyed so switching source timers resets the selection */}
+      {copySource && (
+        <CopyTimerDialog
+          key={copySource.id}
+          timer={copySource}
+          onCancel={() => setCopySource(null)}
+          onConfirm={(copy) => {
+            setCopySource(null);
+            onCopy(copy);
+          }}
+        />
       )}
 
       {/* Paste JSON modal */}

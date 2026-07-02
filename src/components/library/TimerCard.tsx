@@ -10,7 +10,7 @@ interface TimerCardProps {
   dirty?: boolean;
   isConnected?: boolean;
   showBadge?: boolean;
-  onDuplicate: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onPromote?: () => void;
   confirmingDelete?: boolean;
@@ -38,7 +38,7 @@ function LocationBadge({ origin, dirty }: { origin: TimerOrigin; dirty?: boolean
   );
 }
 
-export function TimerCard({ timer, origin, dirty, isConnected, showBadge = true, onDuplicate, onDelete, onPromote, confirmingDelete }: TimerCardProps) {
+export function TimerCard({ timer, origin, dirty, isConnected, showBadge = true, onCopy, onDelete, onPromote, confirmingDelete }: TimerCardProps) {
   const navigate = useNavigate();
 
   const exportTimer = () => {
@@ -124,11 +124,12 @@ export function TimerCard({ timer, origin, dirty, isConnected, showBadge = true,
               Export
             </button>
             <button
-              onClick={onDuplicate}
+              onClick={onCopy}
               className="flex items-center gap-1.5 px-3 py-2 text-brand-navy/60 rounded-lg text-sm font-medium hover:bg-brand/5 hover:text-brand transition-colors"
+              title="Copy this workout — choose what to include"
             >
               <Copy size={14} />
-              Duplicate
+              Copy
             </button>
             <button
               onClick={onDelete}
