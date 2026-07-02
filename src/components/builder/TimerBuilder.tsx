@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Play, ClipboardList, GripVertical, ArrowUpDown, Download, Save, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Play, ClipboardList, CopyPlus, GripVertical, ArrowUpDown, Download, Save, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import {
   DndContext,
@@ -19,6 +19,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import type { CompoundTimer, Circuit } from '../../types/timer';
 import { CircuitCard } from './CircuitCard';
+import { CopyTimerDialog } from '../library/CopyTimerDialog';
 import { DurationPicker } from './DurationPicker';
 import { DEFAULT_WARMUP_SECONDS, computeAutoRest, formatRest } from '../../engine/sequenceBuilder';
 import { TimerPreview } from './TimerPreview';
@@ -109,6 +110,18 @@ function InsertCircuitButton({ onClick }: { onClick: () => void }) {
 
 export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onPreview, onCheatsheet, onCancel }: TimerBuilderProps) {
   const [rearranging, setRearranging] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
+  // The Copy button lives at the top of the page but appends at the bottom —
+  // without scrolling to (and briefly marking) what just landed, it looks like
+  // nothing happened and invites a second, duplicating tap.
+  const [appendedId, setAppendedId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!appendedId) return;
+    document.getElementById(`circuit-${appendedId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setAppendedId(null), 2500);
+    return () => clearTimeout(t);
+  }, [appendedId]);
 
   // With auto-rest on, the displayed rest is derived — never written back into the
   // circuits, so opening a timer to look at it does not modify or re-sync it.
@@ -215,6 +228,14 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
             <ClipboardList size={22} />
           </button>
           <button
+            onClick={() => setCopyOpen(true)}
+            className="p-2.5 text-brand-navy/40 hover:text-brand-navy/70 hover:bg-gray-100 rounded-xl transition-colors"
+            title="Copy part of this workout to the end"
+            aria-label="Copy part of this workout to the end"
+          >
+            <CopyPlus size={22} />
+          </button>
+          <button
             onClick={exportTimer}
             className="p-2.5 text-brand-navy/40 hover:text-brand-navy/70 hover:bg-gray-100 rounded-xl transition-colors"
             title="Export"
@@ -317,7 +338,11 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
           {timer.circuits.map((circuit, i) => {
             const isLast = i === timer.circuits.length - 1;
             return (
-              <div key={circuit.id}>
+              <div
+                key={circuit.id}
+                id={`circuit-${circuit.id}`}
+                className={circuit.id === appendedId ? 'rounded-xl ring-2 ring-brand' : undefined}
+              >
                 {i > 0 && (
                   <InsertCircuitButton onClick={() => createCircuit(i)} />
                 )}
@@ -360,6 +385,20 @@ export function TimerBuilder({ timer, onChange, saveStatus = 'idle', onSave, onP
         <Plus size={20} />
         Add Circuit
       </button>
+
+      {/* Copy portions of this workout onto its end */}
+      {copyOpen && (
+        <CopyTimerDialog
+          mode="append"
+          timer={timer}
+          onCancel={() => setCopyOpen(false)}
+          onConfirm={(circuits) => {
+            setCopyOpen(false);
+            setAppendedId(circuits[0].id);
+            onChange({ ...timer, circuits: [...timer.circuits, ...circuits] });
+          }}
+        />
+      )}
     </div>
   );
 }

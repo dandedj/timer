@@ -402,6 +402,7 @@ export function TimerLibrary(props: TimerLibraryProps) {
       {copySource && (
         <CopyTimerDialog
           key={copySource.id}
+          mode="new"
           timer={copySource}
           onCancel={() => setCopySource(null)}
           onConfirm={(copy) => {

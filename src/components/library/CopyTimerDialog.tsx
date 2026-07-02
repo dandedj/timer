@@ -2,13 +2,17 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Copy, X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { CompoundTimer, Circuit } from '../../types/timer';
-import { computeTotalDuration, DEFAULT_TARGET_SECONDS } from '../../engine/sequenceBuilder';
+import { computeAutoRest, computeTotalDuration, formatRest, DEFAULT_TARGET_SECONDS } from '../../engine/sequenceBuilder';
 
-interface CopyTimerDialogProps {
+type CopyTimerDialogProps = {
   timer: CompoundTimer;
-  onConfirm: (copy: CompoundTimer) => void;
   onCancel: () => void;
-}
+} & (
+  /** 'new' — create a separate timer from the selection (shows a name field). */
+  | { mode: 'new'; onConfirm: (copy: CompoundTimer) => void }
+  /** 'append' — hand back the selection to add to the end of this timer. */
+  | { mode: 'append'; onConfirm: (circuits: Circuit[]) => void }
+);
 
 function formatDuration(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
@@ -47,7 +51,9 @@ function selectCircuits(timer: CompoundTimer, selected: Set<string>): Circuit[] 
     }));
 }
 
-export function CopyTimerDialog({ timer, onConfirm, onCancel }: CopyTimerDialogProps) {
+export function CopyTimerDialog(props: CopyTimerDialogProps) {
+  const { timer, onCancel } = props;
+  const isAppend = props.mode === 'append';
   const defaultName = `${timer.name || 'Untitled Timer'} (copy)`;
   const [name, setName] = useState(defaultName);
   const [selected, setSelected] = useState<Set<string>>(() => allSelectableKeys(timer));
@@ -102,14 +108,20 @@ export function CopyTimerDialog({ timer, onConfirm, onCancel }: CopyTimerDialogP
   const previewCircuits = useMemo(() => selectCircuits(timer, selected), [timer, selected]);
   const selectedExerciseCount = previewCircuits.reduce((s, c) => s + c.exercises.length, 0);
   const totalExerciseCount = timer.circuits.reduce((s, c) => s + c.exercises.length, 0);
-  const copyDurationSeconds = useMemo(
-    () =>
-      computeTotalDuration({
-        ...timer,
-        circuits: previewCircuits,
-      }),
-    [timer, previewCircuits]
+  // 'new' mode: the copy's own circuits. 'append' mode: what this workout
+  // becomes once the selection is added to its end.
+  const resultCircuits = useMemo(
+    () => (isAppend ? [...timer.circuits, ...previewCircuits] : previewCircuits),
+    [timer, previewCircuits, isAppend]
   );
+  const copyDurationSeconds = useMemo(
+    () => computeTotalDuration({ ...timer, circuits: resultCircuits }),
+    [timer, resultCircuits]
+  );
+  // With auto-rest on, the total is pinned to the class length — the number that
+  // really moves as she selects is the rest between circuits. Show it.
+  const resultAutoRest =
+    timer.autoRest && resultCircuits.length > 1 ? computeAutoRest({ ...timer, circuits: resultCircuits }) : null;
   const nothingToCopy = timer.circuits.length === 0;
   const nothingSelected = previewCircuits.length === 0;
   const everythingSelected = selected.size === allSelectableKeys(timer).size;
@@ -119,16 +131,21 @@ export function CopyTimerDialog({ timer, onConfirm, onCancel }: CopyTimerDialogP
 
   const handleConfirm = () => {
     if (nothingSelected) return;
+    const circuits = previewCircuits.map((c) => ({
+      ...c,
+      id: uuidv4(),
+      exercises: c.exercises.map((e) => ({ ...e, id: uuidv4() })),
+    }));
+    if (props.mode === 'append') {
+      props.onConfirm(circuits);
+      return;
+    }
     // Timer-level fields are picked explicitly so device-local metadata a library
     // row carries (origin, dirty) never leaks into the saved copy.
-    onConfirm({
+    props.onConfirm({
       id: uuidv4(),
       name: name.trim() || defaultName,
-      circuits: previewCircuits.map((c) => ({
-        ...c,
-        id: uuidv4(),
-        exercises: c.exercises.map((e) => ({ ...e, id: uuidv4() })),
-      })),
+      circuits,
       audioSettings: timer.audioSettings,
       warmupSeconds: timer.warmupSeconds,
       autoRest: timer.autoRest,
@@ -161,24 +178,32 @@ export function CopyTimerDialog({ timer, onConfirm, onCancel }: CopyTimerDialogP
         className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-6 flex flex-col max-h-[85vh] focus:outline-none"
       >
         <div className="flex items-center justify-between mb-1">
-          <h3 id="copy-workout-title" className="text-lg font-bold text-brand-navy">Copy workout</h3>
+          <h3 id="copy-workout-title" className="text-lg font-bold text-brand-navy">
+            {isAppend ? 'Copy part of this workout' : 'Copy workout'}
+          </h3>
           <button onClick={onCancel} className="p-2 -m-1 text-gray-400 hover:text-gray-600" title="Cancel">
             <X size={20} />
           </button>
         </div>
         <p className="text-sm text-brand-navy/50 mb-4">
-          Everything is included. Uncheck anything you don&rsquo;t want in the copy.
+          {isAppend
+            ? 'The checked items are copied to the end of this workout. Uncheck anything you don’t want repeated.'
+            : 'Everything is included. Uncheck anything you don’t want in the copy.'}
         </p>
 
-        <label className="block text-xs font-semibold uppercase tracking-wide text-brand-navy/50 mb-1.5">
-          Name of the copy
-        </label>
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-brand-navy focus:outline-none focus:ring-2 focus:ring-brand/40 mb-4"
-        />
+        {!isAppend && (
+          <>
+            <label className="block text-xs font-semibold uppercase tracking-wide text-brand-navy/50 mb-1.5">
+              Name of the copy
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-brand-navy focus:outline-none focus:ring-2 focus:ring-brand/40 mb-4"
+            />
+          </>
+        )}
 
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-xs font-semibold uppercase tracking-wide text-brand-navy/50">What to copy</span>
@@ -253,15 +278,16 @@ export function CopyTimerDialog({ timer, onConfirm, onCancel }: CopyTimerDialogP
             nothingToCopy ? 'There is nothing to copy from this workout.' : 'Nothing selected yet — check at least one exercise.'
           ) : (
             <>
-              Copying <span className="font-semibold">{previewCircuits.length} of {timer.circuits.length}</span> circuit{timer.circuits.length !== 1 ? 's' : ''},{' '}
+              {isAppend ? 'Adding' : 'Copying'} <span className="font-semibold">{previewCircuits.length} of {timer.circuits.length}</span> circuit{timer.circuits.length !== 1 ? 's' : ''},{' '}
               <span className="font-semibold">{selectedExerciseCount} of {totalExerciseCount}</span> exercise{totalExerciseCount !== 1 ? 's' : ''} &middot;{' '}
-              <span className="font-mono font-semibold">{formatDuration(copyDurationSeconds)}</span> total
+              {isAppend ? 'workout becomes' : ''} <span className="font-mono font-semibold">{formatDuration(copyDurationSeconds)}</span>{isAppend ? '' : ' total'}
             </>
           )}
         </p>
         {timer.autoRest && !nothingSelected && (
           <p className="text-xs text-brand-navy/40 mt-1">
-            Rest between circuits auto-adjusts to fill the {Math.round((timer.targetDurationSeconds ?? DEFAULT_TARGET_SECONDS) / 60)}-minute class length.
+            Rest between circuits auto-adjusts to fill the {Math.round((timer.targetDurationSeconds ?? DEFAULT_TARGET_SECONDS) / 60)}-minute class length
+            {resultAutoRest !== null ? <> — it becomes <span className="font-semibold">{formatRest(resultAutoRest)}</span></> : null}.
           </p>
         )}
 
@@ -274,7 +300,7 @@ export function CopyTimerDialog({ timer, onConfirm, onCancel }: CopyTimerDialogP
             disabled={nothingSelected}
             className="flex items-center gap-2 px-4 py-2 bg-brand text-white rounded-lg text-sm font-semibold hover:bg-brand-dark disabled:opacity-40"
           >
-            <Copy size={15} /> Create copy
+            <Copy size={15} /> {isAppend ? 'Add to end' : 'Create copy'}
           </button>
         </div>
       </div>
